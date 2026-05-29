@@ -135,3 +135,5 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 import os
 TEMPLATES[0]['DIRS'] = [os.path.join(BASE_DIR, '..', 'frontend')]
+
+ALLOWED_HOSTS = ['crm-9ass.onrender.com']
