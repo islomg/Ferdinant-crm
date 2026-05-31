@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 ('month', models.CharField(max_length=20)),
                 ('year', models.IntegerField()),
                 ('date', models.CharField(max_length=20)),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.student')),
+                ('student', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.student')),
             ],
         ),
     ]

@@ -28,7 +28,7 @@ class Student(models.Model):
         super().save(*args, **kwargs)
 
 class Payment(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.IntegerField()
     month = models.CharField(max_length=20)
     year = models.IntegerField()
