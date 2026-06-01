@@ -1,6 +1,6 @@
 from django.db import models
+import secrets
 
-from django.db import models
 
 class Group(models.Model):
     name = models.CharField(max_length=100)
@@ -13,6 +13,7 @@ class Group(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Student(models.Model):
     name = models.CharField(max_length=200)
@@ -27,6 +28,7 @@ class Student(models.Model):
         self.payment_status = "paid" if self.debt_amount == 0 else "debt"
         super().save(*args, **kwargs)
 
+
 class Payment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.IntegerField()
@@ -34,7 +36,38 @@ class Payment(models.Model):
     year = models.IntegerField()
     date = models.CharField(max_length=20)
 
+
 class Trash(models.Model):
     student_data = models.JSONField()
     deleted_at = models.DateTimeField(auto_now_add=True)
     from_group = models.CharField(max_length=100, blank=True)
+
+
+# ===================== CRM FOYDALANUVCHILAR =====================
+def generate_token():
+    return secrets.token_hex(32)
+
+
+class CRMUser(models.Model):
+    username = models.CharField(max_length=100, unique=True)
+    password_hash = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    address = models.CharField(max_length=200, blank=True)
+    avatar = models.TextField(blank=True)  # base64
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.username
+
+
+class CRMSession(models.Model):
+    user = models.ForeignKey(CRMUser, on_delete=models.CASCADE, related_name='sessions')
+    token = models.CharField(max_length=200, unique=True, default=generate_token)
+    device_id = models.CharField(max_length=200, blank=True)
+    is_trusted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token[:10]}..."
