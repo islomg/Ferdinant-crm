@@ -1,1 +1,1 @@
-web: gunicorn ferdianat.wsgi:application
+web: python manage.py migrate && gunicorn ferdianat.wsgi:application
