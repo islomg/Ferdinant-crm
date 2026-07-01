@@ -34,6 +34,18 @@ class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
+    def get_queryset(self):
+        user = get_user_from_token(self.request)
+
+        if not user:
+            return Group.objects.none()
+
+        return Group.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        user = get_user_from_token(self.request)
+
+        serializer.save(user=user)
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
@@ -41,12 +53,30 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         ensure_monthly_reset()
-        return super().get_queryset()
+
+        user = get_user_from_token(self.request)
+
+        if not user:
+            return Student.objects.none()
+
+        return Student.objects.filter(
+            group__user=user
+        )
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+
+    def get_queryset(self):
+        user = get_user_from_token(self.request)
+
+        if not user:
+            return Payment.objects.none()
+
+        return Payment.objects.filter(
+            student__group__user=user
+        )
 
 
 class TrashViewSet(viewsets.ModelViewSet):

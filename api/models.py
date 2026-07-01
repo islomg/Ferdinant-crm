@@ -4,6 +4,13 @@ import secrets
 
 
 class Group(models.Model):
+    user = models.ForeignKey(
+        'CRMUser',
+        on_delete=models.CASCADE,
+        related_name='groups',
+        null=True,
+        blank=True
+    )
     name = models.CharField(max_length=100)
     time = models.CharField(max_length=10, default="15:00")
     days = models.CharField(max_length=20, default="DCHJ")
