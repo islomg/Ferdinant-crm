@@ -28,10 +28,24 @@ class Student(models.Model):
     period = models.CharField(max_length=7, blank=True, default="")
 
     def save(self, *args, **kwargs):
-        self.debt_amount = max(0, self.original_debt - self.paid_amount)
-        self.payment_status = "paid" if self.debt_amount == 0 else "debt"
+
+        self.debt_amount = max(
+            0,
+            self.original_debt - self.paid_amount
+        )
+
+        if self.debt_amount == 0:
+            self.payment_status = "paid"
+
+        elif self.paid_amount > 0:
+            self.payment_status = "partial"
+
+        else:
+            self.payment_status = "debt"
+
         if not self.period:
             self.period = timezone.now().strftime("%Y-%m")
+
         super().save(*args, **kwargs)
 
 
