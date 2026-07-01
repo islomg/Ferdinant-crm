@@ -9,6 +9,26 @@ from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
 from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, TrashSerializer, CRMUserSerializer
 
 
+# ===================== OYLIK RESET =====================
+def ensure_monthly_reset():
+    """
+    Yangi oy boshlanganda chaqiriladi (o'quvchilar ro'yxati so'ralganda tekshiriladi):
+    - O'tgan oy uchun qilingan to'lov "yechiladi" (paid_amount = 0)
+    - Joriy oy uchun to'liq qarzdorlik chiqadi (debt_amount = original_debt)
+    - period joriy oyga yangilanadi, shunda qayta-qayta reset bo'lmaydi
+    Payment tarixi (Payment jadvali) o'chirilmaydi — faqat Student ustidagi
+    joriy oy holati yangilanadi.
+    """
+    current_period = timezone.now().strftime("%Y-%m")
+    stale = Student.objects.exclude(period=current_period)
+    for student in stale:
+        student.paid_amount = 0
+        student.debt_amount = student.original_debt
+        student.payment_status = "paid" if student.original_debt == 0 else "debt"
+        student.period = current_period
+        student.save(update_fields=["paid_amount", "debt_amount", "payment_status", "period"])
+
+
 # ===================== MAVJUD VIEWSETLAR =====================
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
@@ -18,6 +38,10 @@ class GroupViewSet(viewsets.ModelViewSet):
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+    def get_queryset(self):
+        ensure_monthly_reset()
+        return super().get_queryset()
 
 
 class PaymentViewSet(viewsets.ModelViewSet):

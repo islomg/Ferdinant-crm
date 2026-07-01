@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 import secrets
 
 
@@ -22,10 +23,15 @@ class Student(models.Model):
     debt_amount = models.IntegerField(default=500000)
     paid_amount = models.IntegerField(default=0)
     payment_status = models.CharField(max_length=20, default="debt")
+    # Joriy to'lov holati qaysi oyga tegishli ekanini belgilaydi, masalan "2026-07".
+    # Yangi oy boshlanganda shu maydon eskirgan hisoblanib, holat reset qilinadi.
+    period = models.CharField(max_length=7, blank=True, default="")
 
     def save(self, *args, **kwargs):
         self.debt_amount = max(0, self.original_debt - self.paid_amount)
         self.payment_status = "paid" if self.debt_amount == 0 else "debt"
+        if not self.period:
+            self.period = timezone.now().strftime("%Y-%m")
         super().save(*args, **kwargs)
 
 
