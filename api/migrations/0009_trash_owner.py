@@ -16,14 +16,4 @@ class Migration(migrations.Migration):
             name='owner',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='trash_items', to='api.crmuser'),
         ),
-        migrations.AlterField(
-            model_name='payment',
-            name='owner',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='payments', to='api.crmuser'),
-        ),
-        migrations.AlterField(
-            model_name='payment',
-            name='student_name_snapshot',
-            field=models.CharField(blank=True, max_length=255),
-        ),
     ]
