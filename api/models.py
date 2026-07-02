@@ -57,27 +57,30 @@ class Student(models.Model):
 
 
 class Payment(models.Model):
-    user = models.ForeignKey(
-        'CRMUser',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
+    owner = models.ForeignKey(
+        CRMUser,
+        on_delete=models.PROTECT,   # user o'chsa ham payment yo'qolmasin
+        related_name='payments'
     )
-
     student = models.ForeignKey(
         Student,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name='payments'
     )
+    # Student o'chib ketsa ham, kim to'lagani ko'rinib tursin
+    student_name_snapshot = models.CharField(max_length=255, blank=True)
 
     amount = models.IntegerField()
     month = models.CharField(max_length=20)
     year = models.IntegerField()
     date = models.CharField(max_length=20)
 
-    def __str__(self):
-        return f"{self.amount} so'm - {self.month} {self.year}"
+    def save(self, *args, **kwargs):
+        if self.student and not self.student_name_snapshot:
+            self.student_name_snapshot = self.student.full_name
+        super().save(*args, **kwargs)
 
 
 class Trash(models.Model):
