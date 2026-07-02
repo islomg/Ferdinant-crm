@@ -57,11 +57,27 @@ class Student(models.Model):
 
 
 class Payment(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(
+        'CRMUser',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     amount = models.IntegerField()
     month = models.CharField(max_length=20)
     year = models.IntegerField()
     date = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.amount} so'm - {self.month} {self.year}"
 
 
 class Trash(models.Model):

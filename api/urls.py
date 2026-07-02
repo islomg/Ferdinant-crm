@@ -11,7 +11,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'groups', GroupViewSet)
 router.register(r'students', StudentViewSet)
-router.register(r'payments', PaymentViewSet)
+router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'trash', TrashViewSet)
 
 urlpatterns = [
