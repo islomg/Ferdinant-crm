@@ -58,7 +58,7 @@ class Student(models.Model):
 
 class Payment(models.Model):
     owner = models.ForeignKey(
-        CRMUser,
+        'CRMUser',
         on_delete=models.PROTECT,   # user o'chsa ham payment yo'qolmasin
         related_name='payments'
     )
