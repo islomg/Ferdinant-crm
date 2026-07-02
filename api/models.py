@@ -94,6 +94,13 @@ class Payment(models.Model):
 
 
 class Trash(models.Model):
+    owner = models.ForeignKey(
+        'CRMUser',
+        on_delete=models.CASCADE,
+        related_name='trash_items',
+        null=True,
+        blank=True
+    )
     student_data = models.JSONField()
     deleted_at = models.DateTimeField(auto_now_add=True)
     from_group = models.CharField(max_length=100, blank=True)
