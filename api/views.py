@@ -74,11 +74,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if not user:
             return Payment.objects.none()
 
-        return Payment.objects.filter(user=user)
+        return Payment.objects.filter(owner=user)
 
     def perform_create(self, serializer):
         user = get_user_from_token(self.request)
-        serializer.save(user=user)
+        serializer.save(owner=user)
 
 
 class TrashViewSet(viewsets.ModelViewSet):

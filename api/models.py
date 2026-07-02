@@ -79,7 +79,7 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         if self.student and not self.student_name_snapshot:
-            self.student_name_snapshot = self.student.full_name
+            self.student_name_snapshot = self.student.name
         super().save(*args, **kwargs)
 
 
