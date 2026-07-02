@@ -80,6 +80,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
         user = get_user_from_token(self.request)
         serializer.save(owner=user)
 
+    def update(self, request, *args, **kwargs):
+        # Frontend to'lovni tahrirlashda barcha maydonlarni (masalan owner,
+        # student_name_snapshot) jo'natmasligi mumkin. PUT so'rovini har doim
+        # "partial" sifatida qabul qilamiz — shunda jo'natilmagan maydonlar
+        # (jumladan ism suratini saqlaydigan student_name_snapshot) o'zgarishsiz qoladi.
+        kwargs['partial'] = True
+        return super().update(request, *args, **kwargs)
+
 
 class TrashViewSet(viewsets.ModelViewSet):
     queryset = Trash.objects.all()

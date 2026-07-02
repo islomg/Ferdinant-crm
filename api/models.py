@@ -79,7 +79,17 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         if self.student and not self.student_name_snapshot:
+            # Yangi to'lov yoki student hali mavjud bo'lgan holat — ismini "suratga olamiz"
             self.student_name_snapshot = self.student.name
+        elif not self.student_name_snapshot and self.pk:
+            # Himoya: agar kimdir (masalan eski frontend so'rovi) snapshot maydonini
+            # bo'sh jo'natib, uni PUT/PATCH orqali ustidan yozib yuborsa —
+            # bazada avval saqlangan ismni yo'qotmasligimiz kerak.
+            existing = Payment.objects.filter(pk=self.pk).values_list(
+                'student_name_snapshot', flat=True
+            ).first()
+            if existing:
+                self.student_name_snapshot = existing
         super().save(*args, **kwargs)
 
 
