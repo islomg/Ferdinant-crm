@@ -93,11 +93,25 @@ class TrashViewSet(viewsets.ModelViewSet):
     queryset = Trash.objects.all()
     serializer_class = TrashSerializer
 
+    def get_queryset(self):
+        user = get_user_from_token(self.request)
+        if not user:
+            return Trash.objects.none()
+        return Trash.objects.filter(owner=user)
+
+    def perform_create(self, serializer):
+        user = get_user_from_token(self.request)
+        serializer.save(owner=user)
+
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
         """O'chirilgan o'quvchini qaytarish"""
+        user = get_user_from_token(request)
+        if not user:
+            return Response({'error': "Avtorizatsiya talab qilinadi"}, status=401)
+
         try:
-            trash_item = Trash.objects.get(id=pk)
+            trash_item = Trash.objects.get(id=pk, owner=user)
         except Trash.DoesNotExist:
             return Response({'error': 'Topilmadi'}, status=404)
 
