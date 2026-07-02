@@ -121,6 +121,22 @@ class TrashViewSet(viewsets.ModelViewSet):
         # group FK ni to'g'ri ko'rinishda saqlash
         group_id = student_data.pop('group', None)
 
+        # O'quvchi qaysi guruhga tegishli bo'lsa, o'sha guruh hali ham mavjudligini tekshiramiz.
+        # Agar guruh o'chirilgan bo'lsa, o'quvchini guruhsiz yoki noto'g'ri guruhga qaytarish
+        # o'rniga frontendga aniq xato qaytaramiz — u yerda foydalanuvchiga modal orqali xabar beriladi.
+        group = None
+        if group_id:
+            group = Group.objects.filter(id=group_id).first()
+            if not group:
+                return Response(
+                    {
+                        'error': 'group_deleted',
+                        'message': "Bu o'quvchi tegishli bo'lgan guruh o'chirib yuborilgan. "
+                                   "Avval guruhni tiklang yoki o'quvchini boshqa guruhga biriktiring."
+                    },
+                    status=409
+                )
+
         try:
             student = Student(
                 name=student_data.get('name', ''),
@@ -129,11 +145,8 @@ class TrashViewSet(viewsets.ModelViewSet):
                 paid_amount=student_data.get('paid_amount', 0),
                 payment_status=student_data.get('payment_status', 'debt'),
             )
-            if group_id:
-                try:
-                    student.group_id = group_id
-                except Exception:
-                    student.group = None
+            if group:
+                student.group = group
             student.save()
             trash_item.delete()
             return Response(StudentSerializer(student).data)
