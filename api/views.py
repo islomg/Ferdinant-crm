@@ -12,18 +12,14 @@ from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, 
 # ===================== OYLIK RESET =====================
 def ensure_monthly_reset():
     """
-    Yangi oy boshlanganda chaqiriladi (o'quvchilar ro'yxati so'ralganda tekshiriladi):
-    - Agar o'tgan oy TO'LIQ to'langan bo'lsa -> joriy oy uchun yangi
-      qarzdorlik guruh narxi asosida ochiladi.
-    - Agar o'tgan oyda TO'LANMAGAN qarz qolgan bo'lsa (debt_amount > 0) ->
-      bu qarz YO'QOTILMAYDI, balki joriy oy narxiga QO'SHILIB, yangi
-      original_debt hosil qilinadi (carryover).
-    - period joriy oyga yangilanadi, shunda qayta-qayta reset bo'lmaydi
-    Payment tarixi (Payment jadvali) o'chirilmaydi — faqat Student ustidagi
-    joriy oy holati yangilanadi.
+    Yangi oy boshlanganda:
+    - Oldingi oy TO'LIQ to'langan bo'lsa -> joriy oy narxiga (guruh narxi) qarz ochiladi.
+    - Oldingi oyda TO'LANMAGAN qarz qolgan bo'lsa -> u YO'QOLMAYDI,
+      joriy oy narxiga QO'SHILIB, yangi original_debt hosil qilinadi.
     """
     current_period = timezone.now().strftime("%Y-%m")
     stale = Student.objects.exclude(period=current_period).select_related('group')
+
     for student in stale:
         unpaid_carryover = student.debt_amount or 0
         if student.group and student.group.price is not None:
@@ -39,7 +35,6 @@ def ensure_monthly_reset():
         student.save(update_fields=[
             "original_debt", "paid_amount", "debt_amount", "payment_status", "period"
         ])
-
 
 # ===================== MAVJUD VIEWSETLAR =====================
 class GroupViewSet(viewsets.ModelViewSet):
@@ -131,18 +126,11 @@ class TrashViewSet(viewsets.ModelViewSet):
         # id ni olib tashlaymiz — yangi id berilsin
         student_data.pop('id', None)
         # group FK ni to'g'ri ko'rinishda saqlash
-        original_group_id = student_data.pop('group', None)
-
-        # Foydalanuvchi frontenddagi "guruh tanlash" modalidan aniq guruh
-        # tanlagan bo'lsa (chunki asl guruh o'chirilgan), shu guruh ustun
-        # bo'ladi. Aks holda asl guruh id'sidan foydalanamiz.
-        override_group_id = request.data.get('group_id')
-        group_id = override_group_id or original_group_id
+        group_id = student_data.pop('group', None)
 
         # O'quvchi qaysi guruhga tegishli bo'lsa, o'sha guruh hali ham mavjudligini tekshiramiz.
-        # Agar guruh o'chirilgan bo'lsa va foydalanuvchi hali guruh tanlamagan bo'lsa,
-        # o'quvchini guruhsiz yoki noto'g'ri guruhga qaytarish o'rniga frontendga aniq
-        # xato qaytaramiz — u yerda foydalanuvchiga guruh tanlash modali ko'rsatiladi.
+        # Agar guruh o'chirilgan bo'lsa, o'quvchini guruhsiz yoki noto'g'ri guruhga qaytarish
+        # o'rniga frontendga aniq xato qaytaramiz — u yerda foydalanuvchiga modal orqali xabar beriladi.
         group = None
         if group_id:
             group = Group.objects.filter(id=group_id).first()
