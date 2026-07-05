@@ -33,6 +33,7 @@ class Student(models.Model):
     # Joriy to'lov holati qaysi oyga tegishli ekanini belgilaydi, masalan "2026-07".
     # Yangi oy boshlanganda shu maydon eskirgan hisoblanib, holat reset qilinadi.
     period = models.CharField(max_length=7, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
 
