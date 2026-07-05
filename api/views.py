@@ -21,8 +21,11 @@ def ensure_monthly_reset():
     stale = Student.objects.exclude(period=current_period).select_related('group')
 
     for student in stale:
-        unpaid_carryover = student.debt_amount
-        monthly_price = student.group.price if student.group else student.original_debt
+        unpaid_carryover = student.debt_amount or 0
+        if student.group and student.group.price is not None:
+            monthly_price = student.group.price
+        else:
+            monthly_price = student.original_debt or 0
 
         student.original_debt = unpaid_carryover + monthly_price
         student.paid_amount = 0
