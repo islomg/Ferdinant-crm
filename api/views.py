@@ -128,12 +128,26 @@ class TrashViewSet(viewsets.ModelViewSet):
         # group FK ni to'g'ri ko'rinishda saqlash
         group_id = student_data.pop('group', None)
 
-        # O'quvchi qaysi guruhga tegishli bo'lsa, o'sha guruh hali ham mavjudligini tekshiramiz.
-        # Agar guruh o'chirilgan bo'lsa, o'quvchini guruhsiz yoki noto'g'ri guruhga qaytarish
-        # o'rniga frontendga aniq xato qaytaramiz — u yerda foydalanuvchiga modal orqali xabar beriladi.
+        # Agar frontend o'quvchini ATAYLAB boshqa guruhga biriktirmoqchi bo'lsa
+        # (masalan, asl guruh o'chirilgani uchun modal orqali yangi guruh tanlangan),
+        # shu guruh ustuvor bo'ladi.
+        new_group_id = request.data.get('new_group_id')
+
         group = None
-        if group_id:
-            group = Group.objects.filter(id=group_id).first()
+        if new_group_id:
+            group = Group.objects.filter(id=new_group_id, user=user).first()
+            if not group:
+                return Response(
+                    {'error': 'invalid_group', 'message': "Tanlangan guruh topilmadi."},
+                    status=400
+                )
+        elif group_id:
+            # O'quvchi qaysi guruhga tegishli bo'lsa, o'sha guruh hali ham mavjudligini tekshiramiz.
+            # Agar guruh o'chirilgan bo'lsa, o'quvchini guruhsiz yoki noto'g'ri guruhga qaytarish
+            # o'rniga frontendga aniq xato qaytaramiz — u yerda foydalanuvchiga modal orqali
+            # boshqa guruh tanlash imkoniyati beriladi. Agar guruh hali mavjud bo'lsa,
+            # o'quvchi o'zining eski guruhiga qaytariladi.
+            group = Group.objects.filter(id=group_id, user=user).first()
             if not group:
                 return Response(
                     {
