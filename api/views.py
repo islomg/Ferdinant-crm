@@ -12,22 +12,26 @@ from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, 
 # ===================== OYLIK RESET =====================
 def ensure_monthly_reset():
     """
-    Yangi oy boshlanganda chaqiriladi (o'quvchilar ro'yxati so'ralganda tekshiriladi):
-    - O'tgan oy uchun qilingan to'lov "yechiladi" (paid_amount = 0)
-    - Joriy oy uchun to'liq qarzdorlik chiqadi (debt_amount = original_debt)
-    - period joriy oyga yangilanadi, shunda qayta-qayta reset bo'lmaydi
-    Payment tarixi (Payment jadvali) o'chirilmaydi — faqat Student ustidagi
-    joriy oy holati yangilanadi.
+    Yangi oy boshlanganda:
+    - Oldingi oy TO'LIQ to'langan bo'lsa -> joriy oy narxiga (guruh narxi) qarz ochiladi.
+    - Oldingi oyda TO'LANMAGAN qarz qolgan bo'lsa -> u YO'QOLMAYDI,
+      joriy oy narxiga QO'SHILIB, yangi original_debt hosil qilinadi.
     """
     current_period = timezone.now().strftime("%Y-%m")
-    stale = Student.objects.exclude(period=current_period)
+    stale = Student.objects.exclude(period=current_period).select_related('group')
+
     for student in stale:
+        unpaid_carryover = student.debt_amount
+        monthly_price = student.group.price if student.group else student.original_debt
+
+        student.original_debt = unpaid_carryover + monthly_price
         student.paid_amount = 0
         student.debt_amount = student.original_debt
         student.payment_status = "paid" if student.original_debt == 0 else "debt"
         student.period = current_period
-        student.save(update_fields=["paid_amount", "debt_amount", "payment_status", "period"])
-
+        student.save(update_fields=[
+            "original_debt", "paid_amount", "debt_amount", "payment_status", "period"
+        ])
 
 # ===================== MAVJUD VIEWSETLAR =====================
 class GroupViewSet(viewsets.ModelViewSet):
