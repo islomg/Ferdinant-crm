@@ -135,3 +135,28 @@ class CRMSession(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.token[:10]}..."
+
+
+# ===================== QARZDORLIK ESLATMALARI (TELEGRAM) =====================
+class ReminderLog(models.Model):
+    """
+    Har bir oy uchun qaysi turdagi Telegram eslatmasi allaqachon yuborilganini
+    qayd qiladi. Shu orqali eslatma bir necha marta (masalan bir nechta
+    gunicorn worker fon jarayoni tomonidan) qayta yuborilmasligi kafolatlanadi.
+    """
+    MONTHLY_SUMMARY = 'monthly_summary'
+    INDIVIDUAL = 'individual'
+    TYPE_CHOICES = [
+        (MONTHLY_SUMMARY, "Oy boshidagi umumiy qarzdorlar ro'yxati"),
+        (INDIVIDUAL, "15-sanadan keyingi har bir o'quvchiga alohida ogohlantirish"),
+    ]
+
+    period = models.CharField(max_length=7)  # masalan "2026-07"
+    reminder_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('period', 'reminder_type')
+
+    def __str__(self):
+        return f"{self.period} - {self.reminder_type}"

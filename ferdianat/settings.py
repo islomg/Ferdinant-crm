@@ -81,3 +81,14 @@ STATICFILES_DIRS = []
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ===================== TELEGRAM — QARZDORLIK ESLATMALARI =====================
+# Frontendda (auth-guard.js) ishlatilayotgan bot bilan bir xil bot ishlatiladi.
+# Xavfsizroq bo'lishi uchun bularni Railway/Heroku'da environment variable
+# sifatida sozlash tavsiya etiladi (TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_CHAT_ID).
+TELEGRAM_BOT_TOKEN = os.environ.get(
+    'TELEGRAM_BOT_TOKEN',
+    '8786009968:AAGjxds1ZdvQ8n8ctH8HoLjhElK2hmCTIt0',
+)
+# Qarzdorlar ro'yxati va ogohlantirishlar yuboriladigan umumiy chat/guruh.
+TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '1827066150')
