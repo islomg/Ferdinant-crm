@@ -130,7 +130,7 @@ def send_general_reminder(period):
         "🔔 <b>To'lov eslatmasi</b>\n\n"
         "Salom, hurmatli o'quvchilar!\n"
         f"<b>{month}</b> oyi uchun to'lovni amalga oshirishingizni so'raymiz.\n\n"
-        "🙏 Vaqtida to'lov qilganingiz uchun rahmat!"
+        "Vaqtida to'lov qilganingiz uchun rahmat!"
     )
     return send_telegram_message(text)
 
