@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.contrib.auth.hashers import make_password, check_password
 import hashlib
 
 from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
@@ -188,7 +189,31 @@ class TrashViewSet(viewsets.ModelViewSet):
 
 # ===================== YORDAMCHI =====================
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    # Django'ning PBKDF2 (avtomatik salt bilan) hash'lash mexanizmi —
+    # xom sha256'ga qaraganda ancha xavfsiz.
+    return make_password(password)
+
+
+def verify_password(user, password):
+    """
+    Parolni tekshiradi. Eski (salt'siz sha256) va yangi (Django PBKDF2)
+    formatlarni ham qo'llab-quvvatlaydi. Agar foydalanuvchining paroli
+    hali eski formatda bo'lsa va to'g'ri kiritilsa — uni shu yerdayoq
+    xavfsiz formatga o'tkazib, bazaga saqlab qo'yamiz (shaffof migratsiya,
+    foydalanuvchi parolini qayta o'rnatishi shart emas).
+    """
+    stored = user.password_hash
+
+    if stored.startswith(('pbkdf2_', 'bcrypt', 'argon2')):
+        return check_password(password, stored)
+
+    legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+    if legacy_hash == stored:
+        user.password_hash = make_password(password)
+        user.save(update_fields=['password_hash'])
+        return True
+
+    return False
 
 
 def get_user_from_token(request):
@@ -262,7 +287,7 @@ def auth_login(request):
     except CRMUser.DoesNotExist:
         return Response({'error': "Login yoki parol noto'g'ri"}, status=401)
 
-    if user.password_hash != hash_password(password):
+    if not verify_password(user, password):
         return Response({'error': "Login yoki parol noto'g'ri"}, status=401)
 
     # Avvalgi sessionlarda shu device ishonchli bo'lganmi?
@@ -354,7 +379,7 @@ def auth_change_password(request):
     old_password = request.data.get('old_password', '')
     new_password = request.data.get('new_password', '')
 
-    if user.password_hash != hash_password(old_password):
+    if not verify_password(user, old_password):
         return Response({'error': "Joriy parol noto'g'ri"}, status=400)
 
     if len(new_password) < 4:
