@@ -91,4 +91,4 @@ TELEGRAM_BOT_TOKEN = os.environ.get(
     '8786009968:AAGjxds1ZdvQ8n8ctH8HoLjhElK2hmCTIt0',
 )
 # Qarzdorlar ro'yxati va ogohlantirishlar yuboriladigan umumiy chat/guruh.
-TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '1827066150')
+TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '-1001827066150')
