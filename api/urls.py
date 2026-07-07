@@ -5,7 +5,7 @@ from .views import (
     auth_register, auth_login, auth_trust_device, auth_logout,
     auth_me, auth_update_profile, auth_change_password,
     auth_users_list, auth_delete_user, auth_add_user,
-    auth_check_has_users,
+    auth_check_has_users, telegram_send_debt_warning,
 )
 
 router = DefaultRouter()
@@ -29,4 +29,7 @@ urlpatterns = [
     path('auth/users/', auth_users_list),
     path('auth/users/<int:user_id>/', auth_delete_user),
     path('auth/add-user/', auth_add_user),
+
+    # Telegram — qarzdorlik ogohlantirishini qo'lda yuborish
+    path('telegram/send-debt-warning/', telegram_send_debt_warning),
 ]

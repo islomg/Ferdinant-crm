@@ -445,3 +445,49 @@ def auth_add_user(request):
     )
 
     return Response(CRMUserSerializer(user).data)
+
+# ===================== TELEGRAM — QARZDORLIK OGOHLANTIRISHI (QO'LDA) =====================
+
+@api_view(['POST'])
+def telegram_send_debt_warning(request):
+    """
+    Qarzdorlar bo'limidagi tugma orqali, xohlagan vaqtda qo'lda chaqiriladi.
+    Bu avtomatik oylik eslatmadan (reminders.py) MUSTAQIL ishlaydi — ya'ni
+    ReminderLog cheklovi bunga taalluqli emas, shuning uchun admin xohlagan
+    vaqtida bosishi mumkin.
+
+    Body: { "mode": "summary" | "individual" }
+      - "summary"    -> barcha qarzdorlar ro'yxati BITTA xabar sifatida yuboriladi
+      - "individual" -> har bir qarzdor uchun ALOHIDA xabar yuboriladi
+    """
+    user = get_user_from_token(request)
+    if not user:
+        return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+
+    mode = request.data.get('mode')
+    if mode not in ('summary', 'individual'):
+        return Response({'error': "mode 'summary' yoki 'individual' bo'lishi kerak"}, status=400)
+
+    from datetime import datetime
+    from . import telegram_service
+    from .reminders import get_debtor_students
+
+    debtors = get_debtor_students()
+
+    if not debtors:
+        return Response({'ok': True, 'sent': 0, 'message': "Qarzdorlar yo'q — xabar yuborilmadi"})
+
+    if mode == 'summary':
+        period_label = datetime.now().strftime('%Y-%m')
+        ok = telegram_service.send_monthly_summary(debtors, period_label)
+    else:
+        ok = telegram_service.send_individual_warnings(debtors)
+
+    if not ok:
+        detail = telegram_service.get_last_error() or "Noma'lum xato"
+        return Response(
+            {'error': f"Telegramga yuborishda xato: {detail}"},
+            status=502,
+        )
+
+    return Response({'ok': True, 'sent': len(debtors), 'mode': mode})
