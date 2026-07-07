@@ -88,7 +88,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 # sifatida sozlash tavsiya etiladi (TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_CHAT_ID).
 TELEGRAM_BOT_TOKEN = os.environ.get(
     'TELEGRAM_BOT_TOKEN',
-    '8786009968:AAGjxds1ZdvQ8n8ctH8HoLjhElK2hmCTIt0',
+    '1003050413946:AAGjxds1ZdvQ8n8ctH8HoLjhElK2hmCTIt0',
 )
 # Qarzdorlar ro'yxati va ogohlantirishlar yuboriladigan umumiy chat/guruh.
 TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '1003050413946')
