@@ -468,26 +468,44 @@ def telegram_send_debt_warning(request):
     if mode not in ('summary', 'individual'):
         return Response({'error': "mode 'summary' yoki 'individual' bo'lishi kerak"}, status=400)
 
+    import threading
     from datetime import datetime
     from . import telegram_service
     from .reminders import get_debtor_students
 
-    debtors = get_debtor_students()
+    period_label = datetime.now().strftime('%Y-%m')
 
+    if mode == 'summary':
+        # Bu xabar bitta va tezkor — sinxron yuboramiz, xatoni darhol qaytarish mumkin.
+        ok = telegram_service.send_general_reminder(period_label)
+        if not ok:
+            detail = telegram_service.get_last_error() or "Noma'lum xato"
+            return Response(
+                {'error': f"Telegramga yuborishda xato: {detail}"},
+                status=502,
+            )
+        return Response({'ok': True, 'mode': mode})
+
+    # mode == 'individual'
+    debtors = get_debtor_students()
     if not debtors:
         return Response({'ok': True, 'sent': 0, 'message': "Qarzdorlar yo'q — xabar yuborilmadi"})
 
-    if mode == 'summary':
-        period_label = datetime.now().strftime('%Y-%m')
-        ok = telegram_service.send_monthly_summary(debtors, period_label)
-    else:
-        ok = telegram_service.send_individual_warnings(debtors)
+    # Qarzdorlar ko'p bo'lsa, 4 talik guruhlar orasida 5 daqiqa kutiladi —
+    # shuning uchun so'rovni bloklamaslik uchun fon oqimida yuboramiz.
+    threading.Thread(
+        target=telegram_service.send_individual_debt_warnings_batched,
+        args=(debtors, period_label),
+        kwargs={'batch_size': 4, 'batch_pause_seconds': 5 * 60},
+        daemon=True,
+    ).start()
 
-    if not ok:
-        detail = telegram_service.get_last_error() or "Noma'lum xato"
-        return Response(
-            {'error': f"Telegramga yuborishda xato: {detail}"},
-            status=502,
-        )
-
-    return Response({'ok': True, 'sent': len(debtors), 'mode': mode})
+    return Response({
+        'ok': True,
+        'sent': len(debtors),
+        'mode': mode,
+        'message': (
+            f"{len(debtors)} ta qarzdorga xabar yuborish boshlandi "
+            "(4 talik guruhlarda, guruhlar orasida 5 daqiqa oralig'ida)."
+        ),
+    })

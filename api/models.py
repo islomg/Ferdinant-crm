@@ -144,14 +144,14 @@ class ReminderLog(models.Model):
     qayd qiladi. Shu orqali eslatma bir necha marta (masalan bir nechta
     gunicorn worker fon jarayoni tomonidan) qayta yuborilmasligi kafolatlanadi.
     """
-    MONTHLY_SUMMARY = 'monthly_summary'
+    GENERAL = 'general'
     INDIVIDUAL = 'individual'
     TYPE_CHOICES = [
-        (MONTHLY_SUMMARY, "Oy boshidagi umumiy qarzdorlar ro'yxati"),
-        (INDIVIDUAL, "15-sanadan keyingi har bir o'quvchiga alohida ogohlantirish"),
+        (GENERAL, "Barcha o'quvchilar uchun umumiy to'lov eslatmasi (har 5 kunda)"),
+        (INDIVIDUAL, "15-sanadan keyingi har bir qarzdorga alohida ogohlantirish"),
     ]
 
-    period = models.CharField(max_length=7)  # masalan "2026-07"
+    period = models.CharField(max_length=10)  # masalan "2026-07" yoki "2026-07-05"
     reminder_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     sent_at = models.DateTimeField(auto_now_add=True)
 

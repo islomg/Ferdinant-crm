@@ -77,6 +77,23 @@ def send_telegram_message(text, chat_id=None):
         return False
 
 
+MONTHS_UZ = [
+    "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+    "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr",
+]
+
+
+def month_name_uz(period):
+    """
+    "2026-07" -> "Iyul". Format noto'g'ri bo'lsa, period'ning o'zini qaytaradi.
+    """
+    try:
+        year_str, month_str = period.split("-")
+        return MONTHS_UZ[int(month_str) - 1]
+    except (ValueError, IndexError, AttributeError):
+        return period
+
+
 def format_money(amount):
     try:
         return f"{int(amount):,}".replace(",", " ")
@@ -102,50 +119,58 @@ def _split_into_chunks(lines, header, max_len=3500):
     return chunks
 
 
-def send_monthly_summary(debtor_students, period_label):
+def send_general_reminder(period):
     """
-    Oyning boshida — barcha qarzdor o'quvchilar ro'yxatini umumiy chatga
-    yuboradi. Ro'yxat uzun bo'lsa, bir nechta xabarga bo'linadi.
+    Har oyning 5-sanasida (va shundan keyin har 5 kunda) BARCHA o'quvchilarga
+    umumiy to'lov eslatmasini umumiy chatga yuboradi. Bu qarzdorlar ro'yxati
+    emas — barchaga qaratilgan bitta qisqa, chiroyli eslatma xabari.
     """
-    if not debtor_students:
-        return send_telegram_message(
-            f"✅ {period_label} — bu oy uchun qarzdor o'quvchilar yo'q."
-        )
+    month = month_name_uz(period)
+    text = (
+        "🔔 <b>To'lov eslatmasi</b>\n\n"
+        "Salom, hurmatli o'quvchilar!\n"
+        f"<b>{month}</b> oyi uchun to'lovni amalga oshirishingizni so'raymiz.\n\n"
+        "🙏 Vaqtida to'lov qilganingiz uchun rahmat!"
+    )
+    return send_telegram_message(text)
 
-    header = f"📊 <b>{period_label} — QARZDORLAR RO'YXATI</b>"
-    lines = []
-    for i, student in enumerate(debtor_students, start=1):
-        group_name = student.group.name if student.group else "guruhsiz"
-        lines.append(
-            f"{i}. {student.name} — {group_name} — {format_money(student.debt_amount)} so'm"
-        )
-    lines.append(f"\nJami: {len(debtor_students)} ta o'quvchi qarzdor.")
 
-    chunks = _split_into_chunks(lines, header)
+def send_individual_debt_warnings_batched(
+    debtor_students, period, batch_size=4, batch_pause_seconds=300, message_pause_seconds=0.5
+):
+    """
+    15-sanadan keyin — har bir qarzdor o'quvchi uchun alohida, shaxsiylashtirilgan
+    ogohlantirish xabarini umumiy chatga yuboradi.
+
+    Telegramning tezlik cheklovlariga (rate limit) tegib ketmaslik uchun
+    xabarlar 4 talik guruhlarga (batch) bo'lib yuboriladi: bitta guruh ketma-ket
+    jo'natiladi, so'ng keyingi guruhga o'tishdan oldin `batch_pause_seconds`
+    (standart holatda 5 daqiqa) kutiladi.
+
+    DIQQAT: bu funksiya uzoq davom etishi mumkin (masalan 12 ta qarzdor bo'lsa,
+    ~10 daqiqa), shu sababli har doim alohida fon oqimida (background thread)
+    chaqirilishi kerak — asosiy scheduler tsiklini bloklab qo'ymasligi uchun.
+    """
+    month = month_name_uz(period)
     ok = True
-    for chunk in chunks:
-        if not send_telegram_message(chunk):
-            ok = False
-        time.sleep(0.3)
-    return ok
 
+    for i in range(0, len(debtor_students), batch_size):
+        batch = debtor_students[i:i + batch_size]
+        for student in batch:
+            text = (
+                "⚠️ <b>Qarzdorlik haqida ogohlantirish</b>\n\n"
+                f"Salom, hurmatli <b>{student.name}</b>!\n"
+                f"<b>{month}</b> oyi uchun "
+                f"<b>{format_money(student.debt_amount)} so'm</b> qarzdorligingizni "
+                "to'lab qo'yishingizni so'raymiz.\n\n"
+                "🙏 Tushunganingiz uchun rahmat!"
+            )
+            if not send_telegram_message(text):
+                ok = False
+            time.sleep(message_pause_seconds)
 
-def send_individual_warnings(debtor_students):
-    """
-    15-sanadan keyin — har bir qarzdor o'quvchi uchun alohida ogohlantirish
-    xabarini umumiy chatga yuboradi.
-    """
-    ok = True
-    for student in debtor_students:
-        group_name = student.group.name if student.group else "guruhsiz"
-        text = (
-            "⚠️ <b>Qarzdorlik ogohlantirishi</b>\n\n"
-            f"👤 O'quvchi: <b>{student.name}</b>\n"
-            f"👥 Guruh: {group_name}\n"
-            f"💰 Qarz: {format_money(student.debt_amount)} so'm\n\n"
-            "Iltimos, imkon qadar tezroq to'lovni amalga oshiring."
-        )
-        if not send_telegram_message(text):
-            ok = False
-        time.sleep(0.3)
+        is_last_batch = (i + batch_size) >= len(debtor_students)
+        if not is_last_batch:
+            time.sleep(batch_pause_seconds)
+
     return ok
