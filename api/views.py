@@ -47,12 +47,23 @@ class GroupViewSet(viewsets.ModelViewSet):
         if not user:
             return Group.objects.none()
 
+        owner_id = self.request.query_params.get('owner_id')
+        if owner_id:
+            return Group.objects.filter(user_id=owner_id)
+
         return Group.objects.filter(user=user)
 
     def perform_create(self, serializer):
         user = get_user_from_token(self.request)
 
-        serializer.save(user=user)
+        target_user = user
+        owner_id = self.request.data.get('user')
+        if owner_id:
+            selected_user = CRMUser.objects.filter(id=owner_id).first()
+            if selected_user:
+                target_user = selected_user
+
+        serializer.save(user=target_user)
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
