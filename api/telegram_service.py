@@ -163,7 +163,7 @@ def send_individual_debt_warnings_batched(
                 f"<b>{month}</b> oyi uchun "
                 f"<b>{format_money(student.debt_amount)} so'm</b> qarzdorligingizni "
                 "to'lab qo'yishingizni so'raymiz.\n\n"
-                "🙏 Tushunganingiz uchun rahmat!"
+                "Tushunganingiz uchun rahmat!"
             )
             if not send_telegram_message(text):
                 ok = False
