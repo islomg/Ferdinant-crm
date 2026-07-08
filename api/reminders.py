@@ -24,7 +24,7 @@ vaqtda ishlab qolsa ham, xabar takrorlanib ketmasligini kafolatlaydi
 """
 import calendar
 import threading
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 
 try:
     from zoneinfo import ZoneInfo
@@ -59,6 +59,56 @@ def _parse_group_time(time_str, now):
     except Exception:
         hh, mm = 15, 0
     return now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+
+
+# Har bir darsning davomiyligi (soat hisobida) — guruhning darsi shu vaqt
+# oralig'ida davom etadi deb hisoblanadi: [boshlanish_vaqti, boshlanish_vaqti + LESSON_DURATION_HOURS).
+LESSON_DURATION_HOURS = 1.5
+
+
+def get_groups_in_session(now=None):
+    """
+    Joriy vaqtga qarab, HOZIR darsi davom etayotgan barcha guruhlarni topadi.
+
+    Bir guruh "hozir dars davomida" hisoblanadi, agar:
+      1) bugungi hafta kuni o'sha guruhning dars kuni bo'lsa VA
+      2) boshlanish_vaqti <= hozirgi_vaqt < tugash_vaqti bo'lsa,
+         bunda tugash_vaqti = boshlanish_vaqti + LESSON_DURATION_HOURS (1.5 soat).
+
+    Masalan, hozir soat 11:00 bo'lsa va biror guruhning darsi 10:30 da
+    boshlansa (demak 12:00 da tugaydi), bu guruh natijaga kiradi.
+    """
+    now = now or _now_local()
+    weekday = now.weekday()
+    matching_groups = []
+
+    for group in Group.objects.all():
+        if weekday not in _group_active_weekdays(group.days):
+            continue
+
+        start_at = _parse_group_time(group.time, now)
+        end_at = start_at + timedelta(hours=LESSON_DURATION_HOURS)
+
+        if start_at <= now < end_at:
+            matching_groups.append(group)
+
+    return matching_groups
+
+
+def get_current_lesson_students(now=None):
+    """
+    Hozir darsi davom etayotgan barcha guruhlardagi BARCHA o'quvchilarni
+    (qarzdorligidan qat'i nazar) qaytaradi — "Telegram ogohlantirish"
+    bo'limidagi 3-tugma shu funksiyadan foydalanadi.
+    """
+    groups = get_groups_in_session(now=now)
+    if not groups:
+        return []
+
+    return list(
+        Student.objects.filter(group__in=groups).select_related('group')
+    )
+
 
 
 def check_and_send_group_lesson_reminders(force=False):

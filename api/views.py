@@ -549,3 +549,49 @@ def telegram_send_group_debt_warning(request):
         )
 
     return Response({'ok': True, 'sent': len(debtors), 'group': group.name})
+
+
+@api_view(['POST'])
+def telegram_send_current_lesson_warning(request):
+    """
+    Qarzdorlar bo'limidagi 3-tugma: joriy vaqtga qarab, HOZIR darsi davom
+    etayotgan barcha guruhlarni aniqlaydi (boshlanish_vaqti <= hozirgi_vaqt
+    < tugash_vaqti, har bir dars 1,5 soat davom etadi deb hisoblanadi), so'ng
+    shu guruhlardagi BARCHA o'quvchilarga (qarzdorligidan qat'i nazar)
+    Telegram orqali alohida ogohlantirish xabarini yuboradi.
+
+    Qarzdorlar ko'p bo'lsa xabarlar 4 talik guruhlarga bo'linib, guruhlar
+    orasida 5 daqiqa kutilib yuboriladi — shuning uchun so'rovni bloklamaslik
+    uchun fon oqimida ishga tushiriladi.
+    """
+    user = get_user_from_token(request)
+    if not user:
+        return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+
+    import threading
+    from . import telegram_service
+    from .reminders import get_current_lesson_students
+
+    students = get_current_lesson_students()
+    if not students:
+        return Response({
+            'ok': True,
+            'sent': 0,
+            'message': "Hozir darsi davom etayotgan guruh topilmadi",
+        })
+
+    threading.Thread(
+        target=telegram_service.send_current_lesson_warnings_batched,
+        args=(students,),
+        kwargs={'batch_size': 4, 'batch_pause_seconds': 5 * 60},
+        daemon=True,
+    ).start()
+
+    return Response({
+        'ok': True,
+        'sent': len(students),
+        'message': (
+            f"{len(students)} ta o'quvchiga xabar yuborish boshlandi "
+            "(4 talik guruhlarda, guruhlar orasida 5 daqiqa oralig'ida)."
+        ),
+    })
