@@ -5,9 +5,25 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 import hashlib
+import threading
 
 from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
 from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, TrashSerializer, CRMUserSerializer
+from . import telegram_service
+
+
+def notify_activity(user, title, details=""):
+    """
+    telegram_service.send_activity_notice'ni fon oqimida (bloklamasdan)
+    chaqiradigan qulay yordamchi. `user` None bo'lishi mumkin emas deb
+    kutilmaydi — shu holatda ham xatosiz "Noma'lum" deb yuboradi.
+    """
+    username = user.username if user else "Noma'lum"
+    threading.Thread(
+        target=telegram_service.send_activity_notice,
+        args=(username, title, details),
+        daemon=True,
+    ).start()
 
 
 # ===================== OYLIK RESET =====================
@@ -64,7 +80,14 @@ class GroupViewSet(viewsets.ModelViewSet):
             if selected_user:
                 target_user = selected_user
 
-        serializer.save(user=target_user)
+        group = serializer.save(user=target_user)
+
+        notify_activity(
+            user,
+            "Guruh qo'shildi",
+            f"📚 Guruh: {group.name}"
+            + (f"\n👥 Uchun: {target_user.username}" if target_user and target_user != user else ""),
+        )
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
@@ -82,6 +105,17 @@ class StudentViewSet(viewsets.ModelViewSet):
             group__user=user
         )
 
+    def perform_create(self, serializer):
+        user = get_user_from_token(self.request)
+        student = serializer.save()
+
+        group_name = student.group.name if student.group else "-"
+        notify_activity(
+            user,
+            "O'quvchi qo'shildi",
+            f"🧑\u200d🎓 O'quvchi: {student.name}\n📚 Guruh: {group_name}",
+        )
+
 
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
@@ -97,7 +131,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = get_user_from_token(self.request)
-        serializer.save(owner=user)
+        payment = serializer.save(owner=user)
+
+        student_name = payment.student_name_snapshot or (payment.student.name if payment.student else "-")
+        notify_activity(
+            user,
+            "To'lov kiritildi",
+            f"🧑\u200d🎓 O'quvchi: {student_name}\n💵 Summa: {telegram_service.format_money(payment.amount)} so'm",
+        )
 
     def update(self, request, *args, **kwargs):
         # Frontend to'lovni tahrirlashda barcha maydonlarni (masalan owner,

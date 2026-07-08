@@ -97,6 +97,20 @@ def send_to_admins(text):
     return ok
 
 
+def send_activity_notice(username, title, details=""):
+    """
+    Saytdan foydalanish paytidagi harakatlar (guruh qo'shish, o'quvchi
+    qo'shish, to'lov kiritish va h.k.) haqida shaxsiy admin chat(lar)iga
+    real-time xabar yuboradi. Kim (`username`) qanday harakat (`title`)
+    qilgani va qo'shimcha tafsilotlar (`details`) ko'rsatiladi.
+    """
+    text = f"🔵 <b>{title}</b>\n\n👤 Foydalanuvchi: <b>{username}</b>"
+    if details:
+        text += f"\n{details}"
+    text += f"\n🕒 Vaqt: {timezone_now_str()}"
+    return send_to_admins(text)
+
+
 def send_user_login_notice(user, device_id="", is_trusted=False, ip_address=""):
     """
     CRM foydalanuvchisi tizimga kirganda shaxsiy admin chat(lar)iga xabar yuboradi.
