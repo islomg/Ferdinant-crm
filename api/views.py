@@ -304,6 +304,17 @@ def auth_login(request):
         is_trusted=is_trusted  # Ishonchli qurilma bo'lsa darhol True
     )
 
+    # Kirish haqida Telegram botga xabar yuboramiz (javobni kutdirmasligi uchun fon oqimida)
+    import threading
+    from . import telegram_service
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+    threading.Thread(
+        target=telegram_service.send_user_login_notice,
+        args=(user,),
+        kwargs={'device_id': device_id, 'is_trusted': is_trusted, 'ip_address': client_ip},
+        daemon=True,
+    ).start()
+
     return Response({
         'token': session.token,
         'is_trusted': is_trusted,
@@ -336,7 +347,19 @@ def auth_logout(request):
     """Chiqish — sessionni o'chirish"""
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
     if token:
-        CRMSession.objects.filter(token=token).delete()
+        session = CRMSession.objects.filter(token=token).select_related('user').first()
+        if session:
+            username = session.user.username
+            session.delete()
+
+            # Chiqish haqida Telegram botga xabar yuboramiz (fon oqimida)
+            import threading
+            from . import telegram_service
+            threading.Thread(
+                target=telegram_service.send_user_logout_notice,
+                args=(username,),
+                daemon=True,
+            ).start()
     return Response({'ok': True})
 
 

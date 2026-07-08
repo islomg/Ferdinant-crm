@@ -77,6 +77,39 @@ def send_telegram_message(text, chat_id=None):
         return False
 
 
+def send_user_login_notice(user, device_id="", is_trusted=False, ip_address=""):
+    """
+    CRM foydalanuvchisi tizimga kirganda umumiy Telegram chatiga xabar yuboradi.
+    """
+    device_line = f"\n📱 Qurilma: <code>{device_id}</code>" if device_id else ""
+    ip_line = f"\n🌐 IP: <code>{ip_address}</code>" if ip_address else ""
+    trust_line = "\n✅ Ishonchli qurilma" if is_trusted else "\n🆕 Yangi qurilma (OTP talab qilinishi mumkin)"
+    text = (
+        "🟢 <b>Tizimga kirish</b>\n\n"
+        f"👤 Foydalanuvchi: <b>{user.username}</b>"
+        f"{device_line}{ip_line}{trust_line}\n"
+        f"🕒 Vaqt: {timezone_now_str()}"
+    )
+    return send_telegram_message(text)
+
+
+def send_user_logout_notice(username):
+    """
+    CRM foydalanuvchisi tizimdan chiqqanda umumiy Telegram chatiga xabar yuboradi.
+    """
+    text = (
+        "🔴 <b>Tizimdan chiqish</b>\n\n"
+        f"👤 Foydalanuvchi: <b>{username}</b>\n"
+        f"🕒 Vaqt: {timezone_now_str()}"
+    )
+    return send_telegram_message(text)
+
+
+def timezone_now_str():
+    from django.utils import timezone as _tz
+    return _tz.now().strftime("%d.%m.%Y %H:%M")
+
+
 MONTHS_UZ = [
     "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
     "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr",
