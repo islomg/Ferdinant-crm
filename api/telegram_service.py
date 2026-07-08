@@ -139,6 +139,36 @@ def send_user_logout_notice(username):
     return send_to_admins(text)
 
 
+def send_site_enter_notice(user, device_id="", ip_address=""):
+    """
+    Foydalanuvchi saytni Chrome/brauzerda ochganda (token orqali avtomatik
+    kirganda ham) shaxsiy admin chat(lar)iga xabar yuboradi. Bu parol bilan
+    kirishdan (send_user_login_notice) farqli — har safar sayt ochilganda ishlaydi.
+    """
+    device_line = f"\n📱 Qurilma: <code>{device_id}</code>" if device_id else ""
+    ip_line = f"\n🌐 IP: <code>{ip_address}</code>" if ip_address else ""
+    text = (
+        "🌐 <b>Saytga kirdi</b>\n\n"
+        f"👤 Foydalanuvchi: <b>{user.username}</b>"
+        f"{device_line}{ip_line}\n"
+        f"🕒 Vaqt: {timezone_now_str()}"
+    )
+    return send_to_admins(text)
+
+
+def send_site_leave_notice(username):
+    """
+    Foydalanuvchi brauzer/tabni yopganda yoki saytdan chiqib ketganda
+    (navigator.sendBeacon orqali) shaxsiy admin chat(lar)iga xabar yuboradi.
+    """
+    text = (
+        "🚪 <b>Saytdan chiqdi</b>\n\n"
+        f"👤 Foydalanuvchi: <b>{username}</b>\n"
+        f"🕒 Vaqt: {timezone_now_str()}"
+    )
+    return send_to_admins(text)
+
+
 def timezone_now_str():
     from django.utils import timezone as _tz
     return _tz.now().strftime("%d.%m.%Y %H:%M")

@@ -404,6 +404,58 @@ def auth_logout(request):
     return Response({'ok': True})
 
 
+@api_view(['POST'])
+def auth_site_enter(request):
+    """
+    Foydalanuvchi saytni brauzerda ochganda chaqiriladi (masalan, token orqali
+    avtomatik kirganda — parol qayta so'ralmaydi). Har safar sayt ochilganda
+    Telegram botga "Saytga kirdi" xabari yuboriladi.
+    """
+    user = get_user_from_token(request)
+    if not user:
+        return Response({'error': "Token noto'g'ri"}, status=401)
+
+    device_id = request.data.get('device_id', '')
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+
+    import threading
+    from . import telegram_service
+    threading.Thread(
+        target=telegram_service.send_site_enter_notice,
+        args=(user,),
+        kwargs={'device_id': device_id, 'ip_address': client_ip},
+        daemon=True,
+    ).start()
+    return Response({'ok': True})
+
+
+@api_view(['POST'])
+def auth_site_leave(request):
+    """
+    Foydalanuvchi brauzer/tabni yopganda yoki sahifadan chiqib ketganda
+    chaqiriladi (navigator.sendBeacon orqali). sendBeacon Authorization
+    header qo'sha olmaydi, shuning uchun token requestning o'zida keladi.
+    """
+    token = request.data.get('token', '')
+    if not token:
+        return Response({'error': "Token yo'q"}, status=400)
+
+    session = CRMSession.objects.filter(token=token).select_related('user').first()
+    if not session:
+        return Response({'error': "Token noto'g'ri"}, status=401)
+
+    username = session.user.username
+
+    import threading
+    from . import telegram_service
+    threading.Thread(
+        target=telegram_service.send_site_leave_notice,
+        args=(username,),
+        daemon=True,
+    ).start()
+    return Response({'ok': True})
+
+
 @api_view(['GET'])
 def auth_me(request):
     """Joriy foydalanuvchi ma'lumotlari"""

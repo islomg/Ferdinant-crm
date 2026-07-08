@@ -5,7 +5,8 @@ from .views import (
     auth_register, auth_login, auth_trust_device, auth_logout,
     auth_me, auth_update_profile, auth_change_password,
     auth_users_list, auth_delete_user, auth_add_user,
-    auth_check_has_users, telegram_send_debt_warning,
+    auth_check_has_users, auth_site_enter, auth_site_leave,
+    telegram_send_debt_warning,
     telegram_send_group_debt_warning, telegram_send_current_lesson_warning,
 )
 
@@ -24,6 +25,8 @@ urlpatterns = [
     path('auth/login/', auth_login),
     path('auth/trust-device/', auth_trust_device),
     path('auth/logout/', auth_logout),
+    path('auth/site-enter/', auth_site_enter),
+    path('auth/site-leave/', auth_site_leave),
     path('auth/me/', auth_me),
     path('auth/profile/', auth_update_profile),
     path('auth/change-password/', auth_change_password),
