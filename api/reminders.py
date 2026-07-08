@@ -110,9 +110,6 @@ def _try_send_group_lesson_once(period, group):
     if not debtors:
         return 'no_debtors'
 
-    if not (group.telegram_chat_id or "").strip():
-        return 'no_chat_id'
-
     try:
         telegram_service.send_group_lesson_debtors(group, debtors)
         return 'sent'

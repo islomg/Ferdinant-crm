@@ -18,10 +18,6 @@ class Group(models.Model):
     teacher = models.CharField(max_length=100, blank=True)
     price = models.IntegerField(default=500000)
     max_students = models.IntegerField(default=17)
-    # Ushbu guruhga tegishli qarzdorlik xabarlari yuboriladigan Telegram
-    # guruh/kanal chat ID raqami. Bo'sh qoldirilsa, shu guruh uchun avtomatik
-    # dars-vaqti eslatmasi yuborilmaydi (chat sozlanmagan hisoblanadi).
-    telegram_chat_id = models.CharField(max_length=64, blank=True, default="")
 
     def __str__(self):
         return self.name

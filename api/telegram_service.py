@@ -138,17 +138,11 @@ def send_general_reminder(period):
 def send_group_lesson_debtors(group, debtor_students):
     """
     Guruh darsi boshlanganda chaqiriladi: shu GURUHGA tegishli qarzdorlar
-    ro'yxatini, aynan o'sha guruh uchun sozlangan Telegram chatiga
-    (group.telegram_chat_id) yuboradi.
-
-    Agar guruhda chat ID sozlanmagan bo'lsa yoki qarzdor bo'lmasa, hech
-    narsa yuborilmaydi (False qaytadi).
+    ro'yxatini (faqat o'sha guruhdagi o'quvchilar), umumiy Telegram chatiga
+    (settings.TELEGRAM_GROUP_CHAT_ID) yuboradi. Xabar sarlavhasida qaysi
+    guruh ekani aniq ko'rsatiladi, shunda bitta umumiy chatda ham har bir
+    guruhning qarzdorlari alohida-alohida ajralib turadi.
     """
-    chat_id = (group.telegram_chat_id or "").strip()
-    if not chat_id:
-        print(f"[telegram] '{group.name}' guruhi uchun telegram_chat_id sozlanmagan — xabar yuborilmadi.")
-        return False
-
     if not debtor_students:
         return False
 
@@ -164,7 +158,7 @@ def send_group_lesson_debtors(group, debtor_students):
 
     ok = True
     for chunk in chunks:
-        if not send_telegram_message(chunk, chat_id=chat_id):
+        if not send_telegram_message(chunk):
             ok = False
     return ok
 

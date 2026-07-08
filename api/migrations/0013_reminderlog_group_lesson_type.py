@@ -8,11 +8,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='group',
-            name='telegram_chat_id',
-            field=models.CharField(blank=True, default='', max_length=64),
-        ),
         migrations.AlterField(
             model_name='reminderlog',
             name='period',

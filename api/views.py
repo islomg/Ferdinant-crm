@@ -536,12 +536,6 @@ def telegram_send_group_debt_warning(request):
     except Group.DoesNotExist:
         return Response({'error': "Bunday guruh topilmadi"}, status=404)
 
-    if not (group.telegram_chat_id or '').strip():
-        return Response(
-            {'error': f"'{group.name}' guruhi uchun Telegram chat ID sozlanmagan"},
-            status=400,
-        )
-
     debtors = list(Student.objects.filter(group=group, debt_amount__gt=0))
     if not debtors:
         return Response({'ok': True, 'sent': 0, 'message': "Bu guruhda qarzdor yo'q"})
