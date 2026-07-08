@@ -6,10 +6,12 @@ from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 import hashlib
 import threading
+from django_ratelimit.decorators import ratelimit
 
 from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
 from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, TrashSerializer, CRMUserSerializer
 from . import telegram_service
+
 
 
 def notify_activity(user, title, details=""):
@@ -278,8 +280,8 @@ def auth_check_has_users(request):
     count = CRMUser.objects.count()
     return Response({'has_users': count > 0, 'count': count})
 
-
 @api_view(['POST'])
+@ratelimit(key='ip', rate='10/m', block=True)
 def auth_register(request):
     """Yangi foydalanuvchi ro'yxatdan o'tish"""
     username = request.data.get('username', '').strip().lower()
@@ -314,6 +316,8 @@ def auth_register(request):
 
 
 @api_view(['POST'])
+@ratelimit(key='ip', rate='5/m', block=True)
+@ratelimit(key='post:username', rate='5/m', block=True)
 def auth_login(request):
     """Login"""
     username = request.data.get('username', '').strip().lower()
@@ -711,3 +715,11 @@ def telegram_send_current_lesson_warning(request):
             "(4 talik guruhlarda, guruhlar orasida 5 daqiqa oralig'ida)."
         ),
     })
+
+def ratelimited_error(request, exception):
+    from rest_framework.response import Response
+    from django.http import JsonResponse
+    return JsonResponse(
+        {'error': "Juda ko'p urinish qilindi. Iltimos, 1 daqiqadan keyin qayta urinib ko'ring."},
+        status=429
+    )

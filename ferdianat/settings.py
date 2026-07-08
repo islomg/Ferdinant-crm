@@ -80,6 +80,13 @@ STATICFILES_DIRS = []
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ===================== RATE LIMITING =====================
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ===================== TELEGRAM — QARZDORLIK ESLATMALARI =====================
@@ -102,3 +109,5 @@ TELEGRAM_ADMIN_CHAT_IDS = [
     for cid in os.environ.get('TELEGRAM_ADMIN_CHAT_IDS', '5538148203,8629268614').split(',')
     if cid.strip()
 ]
+
+RATELIMIT_VIEW = 'api.views.ratelimited_error'
