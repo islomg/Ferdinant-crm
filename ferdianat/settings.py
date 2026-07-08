@@ -92,3 +92,13 @@ TELEGRAM_BOT_TOKEN = os.environ.get(
 )
 # Qarzdorlar ro'yxati va ogohlantirishlar yuboriladigan umumiy chat/guruh.
 TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '-1001827066150')
+
+# Login/logout kabi tizim eventlari GURUHGA emas, shu shaxsiy chat_id'larga
+# (vergul bilan ajratilgan) yuboriladi. Railway/Heroku'da
+# TELEGRAM_ADMIN_CHAT_IDS="5538148203,8629268614" kabi env variable orqali
+# ham sozlash mumkin.
+TELEGRAM_ADMIN_CHAT_IDS = [
+    cid.strip()
+    for cid in os.environ.get('TELEGRAM_ADMIN_CHAT_IDS', '5538148203,8629268614').split(',')
+    if cid.strip()
+]

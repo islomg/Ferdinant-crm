@@ -77,9 +77,29 @@ def send_telegram_message(text, chat_id=None):
         return False
 
 
+def send_to_admins(text):
+    """
+    Guruhga emas, faqat settings.TELEGRAM_ADMIN_CHAT_IDS ro'yxatidagi shaxsiy
+    chat'larga xabar yuboradi (login/logout kabi tizim eventlari uchun).
+    Ro'yxatdagi barcha chat'larga urinib ko'radi; hech bo'lmasa bittasiga
+    muvaffaqiyatli yuborilsa True qaytaradi.
+    """
+    admin_ids = getattr(settings, 'TELEGRAM_ADMIN_CHAT_IDS', [])
+    if not admin_ids:
+        _last_error["message"] = "TELEGRAM_ADMIN_CHAT_IDS sozlanmagan"
+        print(f"[telegram] {_last_error['message']} — xabar yuborilmadi.")
+        return False
+
+    ok = False
+    for admin_chat_id in admin_ids:
+        if send_telegram_message(text, chat_id=admin_chat_id):
+            ok = True
+    return ok
+
+
 def send_user_login_notice(user, device_id="", is_trusted=False, ip_address=""):
     """
-    CRM foydalanuvchisi tizimga kirganda umumiy Telegram chatiga xabar yuboradi.
+    CRM foydalanuvchisi tizimga kirganda shaxsiy admin chat(lar)iga xabar yuboradi.
     """
     device_line = f"\n📱 Qurilma: <code>{device_id}</code>" if device_id else ""
     ip_line = f"\n🌐 IP: <code>{ip_address}</code>" if ip_address else ""
@@ -90,19 +110,19 @@ def send_user_login_notice(user, device_id="", is_trusted=False, ip_address=""):
         f"{device_line}{ip_line}{trust_line}\n"
         f"🕒 Vaqt: {timezone_now_str()}"
     )
-    return send_telegram_message(text)
+    return send_to_admins(text)
 
 
 def send_user_logout_notice(username):
     """
-    CRM foydalanuvchisi tizimdan chiqqanda umumiy Telegram chatiga xabar yuboradi.
+    CRM foydalanuvchisi tizimdan chiqqanda shaxsiy admin chat(lar)iga xabar yuboradi.
     """
     text = (
         "🔴 <b>Tizimdan chiqish</b>\n\n"
         f"👤 Foydalanuvchi: <b>{username}</b>\n"
         f"🕒 Vaqt: {timezone_now_str()}"
     )
-    return send_telegram_message(text)
+    return send_to_admins(text)
 
 
 def timezone_now_str():
