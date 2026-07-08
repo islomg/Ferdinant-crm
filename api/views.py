@@ -560,9 +560,10 @@ def telegram_send_current_lesson_warning(request):
     shu guruhlardagi BARCHA o'quvchilarga (qarzdorligidan qat'i nazar)
     Telegram orqali alohida ogohlantirish xabarini yuboradi.
 
-    Qarzdorlar ko'p bo'lsa xabarlar 4 talik guruhlarga bo'linib, guruhlar
-    orasida 5 daqiqa kutilib yuboriladi — shuning uchun so'rovni bloklamaslik
-    uchun fon oqimida ishga tushiriladi.
+    Individual oylik qarzdorlik ogohlantirishidan farqli o'laroq, bu yerda
+    5 daqiqalik guruh-oralig'i kutish YO'Q — barcha o'quvchilarga bir vaqtda
+    (ketma-ket, deyarli kutilmasdan) yuboriladi. Shunga qaramay, so'rovni
+    bloklamaslik uchun yuborish fon oqimida ishga tushiriladi.
     """
     user = get_user_from_token(request)
     if not user:
@@ -583,7 +584,6 @@ def telegram_send_current_lesson_warning(request):
     threading.Thread(
         target=telegram_service.send_current_lesson_warnings_batched,
         args=(students,),
-        kwargs={'batch_size': 4, 'batch_pause_seconds': 5 * 60},
         daemon=True,
     ).start()
 

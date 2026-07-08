@@ -163,9 +163,7 @@ def send_group_lesson_debtors(group, debtor_students):
     return ok
 
 
-def send_current_lesson_warnings_batched(
-    students, batch_size=4, batch_pause_seconds=300, message_pause_seconds=0.5
-):
+def send_current_lesson_warnings_batched(students, message_pause_seconds=0.3):
     """
     Hozir darsi davom etayotgan guruh(lar)dagi BARCHA o'quvchilarga (qarzdorligidan
     qat'i nazar) alohida, shaxsiylashtirilgan ogohlantirish xabarini yuboradi.
@@ -175,29 +173,26 @@ def send_current_lesson_warnings_batched(
     aniqlanadi (reminders.get_current_lesson_students orqali), so'ng shu
     ro'yxat shu yerga uzatiladi.
 
-    Telegramning tezlik chekloviga tegib ketmaslik uchun, individual
-    ogohlantirishlar kabi, xabarlar `batch_size` talik guruhlarga bo'linib,
-    guruhlar orasida `batch_pause_seconds` kutiladi.
+    Individual oylik qarzdorlik ogohlantirishidan farqli o'laroq, bu yerda
+    guruhlar orasida 5 daqiqalik kutish YO'Q — barcha o'quvchilarga bir
+    vaqtda (ketma-ket, deyarli kutilmasdan) yuboriladi, chunki bu "hozir dars
+    boshlangan guruh" haqida bo'lib, xabar kechiktirilmasdan yetib borishi
+    kerak. Telegramning tezlik chekloviga tegib ketmaslik uchun faqat har bir
+    xabar orasida qisqa (`message_pause_seconds`) tanaffus qo'yiladi.
     """
     ok = True
 
-    for i in range(0, len(students), batch_size):
-        batch = students[i:i + batch_size]
-        for student in batch:
-            group_name = student.group.name if student.group else ""
-            text = (
-                "⚠️ <b>Ogohlantirish</b>\n\n"
-                f"Salom, hurmatli <b>{student.name}</b>!\n"
-                f"Hozir <b>{group_name}</b> guruhidagi darsingiz davom etmoqda.\n\n"
-                "Iltimos, to'lovlaringizni o'z vaqtida amalga oshirishni unutmang."
-            )
-            if not send_telegram_message(text):
-                ok = False
-            time.sleep(message_pause_seconds)
-
-        is_last_batch = (i + batch_size) >= len(students)
-        if not is_last_batch:
-            time.sleep(batch_pause_seconds)
+    for student in students:
+        group_name = student.group.name if student.group else ""
+        text = (
+            "⚠️ <b>Ogohlantirish</b>\n\n"
+            f"Salom, hurmatli <b>{student.name}</b>!\n"
+            f"Hozir <b>{group_name}</b> guruhidagi darsingiz davom etmoqda.\n\n"
+            "Iltimos, to'lovlaringizni o'z vaqtida amalga oshirishni unutmang."
+        )
+        if not send_telegram_message(text):
+            ok = False
+        time.sleep(message_pause_seconds)
 
     return ok
 
