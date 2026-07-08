@@ -509,3 +509,49 @@ def telegram_send_debt_warning(request):
             "(4 talik guruhlarda, guruhlar orasida 5 daqiqa oralig'ida)."
         ),
     })
+
+
+@api_view(['POST'])
+def telegram_send_group_debt_warning(request):
+    """
+    Berilgan guruh (group_id) uchun qarzdorlar ro'yxatini, o'sha guruh
+    uchun sozlangan Telegram chatiga darhol yuboradi (dars vaqtini
+    kutmasdan, qo'lda test qilish yoki majburan yuborish uchun).
+
+    Body: { "group_id": <int> }
+    """
+    user = get_user_from_token(request)
+    if not user:
+        return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+
+    group_id = request.data.get('group_id')
+    if not group_id:
+        return Response({'error': "'group_id' majburiy"}, status=400)
+
+    from .models import Group, Student
+    from . import telegram_service
+
+    try:
+        group = Group.objects.get(pk=group_id)
+    except Group.DoesNotExist:
+        return Response({'error': "Bunday guruh topilmadi"}, status=404)
+
+    if not (group.telegram_chat_id or '').strip():
+        return Response(
+            {'error': f"'{group.name}' guruhi uchun Telegram chat ID sozlanmagan"},
+            status=400,
+        )
+
+    debtors = list(Student.objects.filter(group=group, debt_amount__gt=0))
+    if not debtors:
+        return Response({'ok': True, 'sent': 0, 'message': "Bu guruhda qarzdor yo'q"})
+
+    ok = telegram_service.send_group_lesson_debtors(group, debtors)
+    if not ok:
+        detail = telegram_service.get_last_error() or "Noma'lum xato"
+        return Response(
+            {'error': f"Telegramga yuborishda xato: {detail}"},
+            status=502,
+        )
+
+    return Response({'ok': True, 'sent': len(debtors), 'group': group.name})

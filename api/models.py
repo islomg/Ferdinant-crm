@@ -18,6 +18,10 @@ class Group(models.Model):
     teacher = models.CharField(max_length=100, blank=True)
     price = models.IntegerField(default=500000)
     max_students = models.IntegerField(default=17)
+    # Ushbu guruhga tegishli qarzdorlik xabarlari yuboriladigan Telegram
+    # guruh/kanal chat ID raqami. Bo'sh qoldirilsa, shu guruh uchun avtomatik
+    # dars-vaqti eslatmasi yuborilmaydi (chat sozlanmagan hisoblanadi).
+    telegram_chat_id = models.CharField(max_length=64, blank=True, default="")
 
     def __str__(self):
         return self.name
@@ -146,12 +150,18 @@ class ReminderLog(models.Model):
     """
     GENERAL = 'general'
     INDIVIDUAL = 'individual'
+    GROUP_LESSON = 'group_lesson'
     TYPE_CHOICES = [
         (GENERAL, "Barcha o'quvchilar uchun umumiy to'lov eslatmasi (har 5 kunda)"),
         (INDIVIDUAL, "15-sanadan keyingi har bir qarzdorga alohida ogohlantirish"),
+        (GROUP_LESSON, "Guruh darsi boshlanganda shu guruh qarzdorlari ro'yxati"),
     ]
 
-    period = models.CharField(max_length=10)  # masalan "2026-07" yoki "2026-07-05"
+    # Guruh-asosli eslatmalar uchun "period" maydoniga
+    # "YYYY-MM-DD-group-<id>" ko'rinishida noyob kalit yoziladi (masalan
+    # "2026-07-08-group-3"), shu orqali bir xil guruhga bir kunda faqat bitta
+    # marta xabar yuborilishi kafolatlanadi.
+    period = models.CharField(max_length=40)  # masalan "2026-07" yoki "2026-07-05"
     reminder_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     sent_at = models.DateTimeField(auto_now_add=True)
 

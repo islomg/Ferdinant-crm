@@ -5,7 +5,7 @@ from .models import Group, Student, Payment, Trash
 
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'teacher', 'price', 'max_students')
+    list_display = ('id', 'name', 'teacher', 'time', 'days', 'telegram_chat_id', 'price', 'max_students')
     search_fields = ('name', 'teacher')
 
 @admin.register(Student)

@@ -32,8 +32,96 @@ try:
 except Exception:  # pragma: no cover - zoneinfo har doim mavjud bo'lishi kerak (py>=3.9)
     TASHKENT_TZ = None
 
-from .models import Student, ReminderLog
+from .models import Student, Group, ReminderLog
 from . import telegram_service
+
+# Guruhning "days" kodiga qarab, o'sha guruh qaysi hafta kunlarida dars
+# o'tishini aniqlaydi. Python'ning datetime.weekday() bo'yicha:
+# Dushanba=0, Seshanba=1, Chorshanba=2, Payshanba=3, Juma=4, Shanba=5, Yakshanba=6.
+GROUP_DAY_CODES = {
+    "DCHJ": {0, 2, 4},        # Dushanba, Chorshanba, Juma
+    "SPSH": {1, 3, 5},        # Seshanba, Payshanba, Shanba
+    "Har kuni": {0, 1, 2, 3, 4, 5},  # Yakshanbadan tashqari har kuni
+}
+
+
+def _group_active_weekdays(days_code):
+    return GROUP_DAY_CODES.get(days_code, GROUP_DAY_CODES["DCHJ"])
+
+
+def _parse_group_time(time_str, now):
+    """Guruhning "15:00" kabi vaqt matnini bugungi sana bilan birlashtirib,
+    to'liq datetime obyektiga aylantiradi. Format noto'g'ri bo'lsa, 15:00ga
+    tushib qoladi."""
+    try:
+        hh, mm = time_str.strip().split(":")
+        hh, mm = int(hh), int(mm)
+    except Exception:
+        hh, mm = 15, 0
+    return now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+
+
+def check_and_send_group_lesson_reminders(force=False):
+    """
+    Har bir guruh uchun: bugun o'sha guruhning dars kuni bo'lsa va dars
+    boshlanish vaqti allaqachon kelgan (yoki o'tib ketgan) bo'lsa — shu
+    guruhga tegishli qarzdor o'quvchilar ro'yxatini, o'sha guruh uchun
+    sozlangan Telegram chatiga yuboradi.
+
+    Bir guruhga bir kunda faqat bitta marta yuboriladi (ReminderLog orqali
+    kuzatiladi). Chat ID sozlanmagan yoki qarzdor bo'lmagan guruhlar
+    o'tkazib yuboriladi.
+    """
+    now = _now_local()
+    today_str = now.strftime("%Y-%m-%d")
+    weekday = now.weekday()
+    results = {}
+
+    for group in Group.objects.all():
+        if weekday not in _group_active_weekdays(group.days):
+            continue
+
+        scheduled_at = _parse_group_time(group.time, now)
+        if now < scheduled_at:
+            continue  # bu guruhning bugungi darsi hali boshlanmagan
+
+        period = f"{today_str}-group-{group.id}"
+
+        if force:
+            ReminderLog.objects.filter(
+                period=period, reminder_type=ReminderLog.GROUP_LESSON
+            ).delete()
+
+        results[group.id] = _try_send_group_lesson_once(period, group)
+
+    return results
+
+
+def _try_send_group_lesson_once(period, group):
+    log, created = ReminderLog.objects.get_or_create(
+        period=period, reminder_type=ReminderLog.GROUP_LESSON
+    )
+    if not created:
+        return 'already_sent'
+
+    debtors = list(
+        Student.objects.filter(group=group, debt_amount__gt=0)
+    )
+    if not debtors:
+        return 'no_debtors'
+
+    if not (group.telegram_chat_id or "").strip():
+        return 'no_chat_id'
+
+    try:
+        telegram_service.send_group_lesson_debtors(group, debtors)
+        return 'sent'
+    except Exception as exc:
+        # Yuborish muvaffaqiyatsiz bo'lsa, keyingi tekshiruvda qayta
+        # urinib ko'rilishi uchun log yozuvini bekor qilamiz.
+        log.delete()
+        print(f"[reminders] '{group.name}' guruhi uchun xato: {exc}")
+        return 'error'
 
 # Umumiy eslatma yuboriladigan sanalar (oyning 5-sanasidan boshlab, har 5 kunda).
 GENERAL_DAYS = (5, 10, 15, 20, 25, 30)

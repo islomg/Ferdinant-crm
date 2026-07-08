@@ -135,6 +135,40 @@ def send_general_reminder(period):
     return send_telegram_message(text)
 
 
+def send_group_lesson_debtors(group, debtor_students):
+    """
+    Guruh darsi boshlanganda chaqiriladi: shu GURUHGA tegishli qarzdorlar
+    ro'yxatini, aynan o'sha guruh uchun sozlangan Telegram chatiga
+    (group.telegram_chat_id) yuboradi.
+
+    Agar guruhda chat ID sozlanmagan bo'lsa yoki qarzdor bo'lmasa, hech
+    narsa yuborilmaydi (False qaytadi).
+    """
+    chat_id = (group.telegram_chat_id or "").strip()
+    if not chat_id:
+        print(f"[telegram] '{group.name}' guruhi uchun telegram_chat_id sozlanmagan — xabar yuborilmadi.")
+        return False
+
+    if not debtor_students:
+        return False
+
+    lines = [
+        f"• {s.name} — <b>{format_money(s.debt_amount)} so'm</b>"
+        for s in debtor_students
+    ]
+    header = (
+        f"📚 <b>{group.name}</b> guruhi darsi boshlandi\n\n"
+        f"⚠️ Qarzdorlar ro'yxati ({len(debtor_students)} ta):\n"
+    )
+    chunks = _split_into_chunks(lines, header)
+
+    ok = True
+    for chunk in chunks:
+        if not send_telegram_message(chunk, chat_id=chat_id):
+            ok = False
+    return ok
+
+
 def send_individual_debt_warnings_batched(
     debtor_students, period, batch_size=4, batch_pause_seconds=300, message_pause_seconds=0.5
 ):

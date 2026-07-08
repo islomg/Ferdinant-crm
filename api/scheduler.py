@@ -16,11 +16,11 @@ import traceback
 _scheduler_started = False
 _lock = threading.Lock()
 
-# Sana/soat tekshiruvi orasidagi interval (soniyada). Eslatmalar aniq
-# soat 8:00da boshlanishi kerak bo'lgani uchun, tekshiruv har soatda emas,
-# har 5 daqiqada bir marta bajariladi (shunda 8:00dan ko'pi bilan bir necha
-# daqiqa kechikish bilan ishga tushadi).
-CHECK_INTERVAL_SECONDS = 5 * 60
+# Sana/soat tekshiruvi orasidagi interval (soniyada). Guruhlarning dars
+# vaqtiga qarab yuboriladigan eslatmalar aniqroq bo'lishi uchun (masalan
+# 15:00da boshlanadigan darsni ko'pi bilan 1 daqiqa kechikish bilan
+# ushlab qolish uchun), tekshiruv har 1 daqiqada bir marta bajariladi.
+CHECK_INTERVAL_SECONDS = 60
 
 
 def start_reminder_scheduler():
@@ -42,8 +42,12 @@ def _run_loop():
 
     while True:
         try:
-            from .reminders import check_and_send_reminders
+            from .reminders import (
+                check_and_send_reminders,
+                check_and_send_group_lesson_reminders,
+            )
             check_and_send_reminders()
+            check_and_send_group_lesson_reminders()
         except Exception:
             traceback.print_exc()
         time.sleep(CHECK_INTERVAL_SECONDS)
