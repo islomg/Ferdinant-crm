@@ -113,8 +113,16 @@ def generate_token():
 
 
 class CRMUser(models.Model):
+    ROLE_ADMIN = 'admin'
+    ROLE_TEACHER = 'teacher'
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_TEACHER, 'Teacher'),
+    ]
+
     username = models.CharField(max_length=100, unique=True)
     password_hash = models.CharField(max_length=200)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_TEACHER)
     name = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     address = models.CharField(max_length=200, blank=True)

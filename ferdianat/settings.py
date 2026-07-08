@@ -4,11 +4,18 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-8+k$-y13*x@1s+zp&t+8f921-si=0=oe(q9!@tap)i^_t%6%1!'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-8+k$-y13*x@1s+zp&t+8f921-si=0=oe(q9!@tap)i^_t%6%1!',
+)
 
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.environ.get(
+    'DJANGO_ALLOWED_HOSTS',
+    '.railway.app'
+).split(',')
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -87,16 +94,16 @@ CACHES = {
     }
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    'DJANGO_CORS_ORIGINS',
+    'https://ferdinant-crm-frontend.netlify.app'
+).split(',')
 
 # ===================== TELEGRAM — QARZDORLIK ESLATMALARI =====================
 # Frontendda (auth-guard.js) ishlatilayotgan bot bilan bir xil bot ishlatiladi.
 # Xavfsizroq bo'lishi uchun bularni Railway/Heroku'da environment variable
 # sifatida sozlash tavsiya etiladi (TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_CHAT_ID).
-TELEGRAM_BOT_TOKEN = os.environ.get(
-    'TELEGRAM_BOT_TOKEN',
-    '8786009968:AAGjxds1ZdvQ8n8ctH8HoLjhElK2hmCTIt0',
-)
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 # Qarzdorlar ro'yxati va ogohlantirishlar yuboriladigan umumiy chat/guruh.
 TELEGRAM_GROUP_CHAT_ID = os.environ.get('TELEGRAM_GROUP_CHAT_ID', '-1001827066150')
 

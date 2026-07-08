@@ -68,6 +68,8 @@ class GroupViewSet(viewsets.ModelViewSet):
 
         owner_id = self.request.query_params.get('owner_id')
         if owner_id:
+            if not is_admin(user):
+                return Group.objects.none()
             return Group.objects.filter(user_id=owner_id)
 
         return Group.objects.filter(user=user)
@@ -77,7 +79,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
         target_user = user
         owner_id = self.request.data.get('user')
-        if owner_id:
+        if owner_id and is_admin(user):
             selected_user = CRMUser.objects.filter(id=owner_id).first()
             if selected_user:
                 target_user = selected_user
@@ -257,6 +259,11 @@ def verify_password(user, password):
         return True
 
     return False
+
+
+def is_admin(user):
+    """Foydalanuvchi admin rolidami — tekshiradi."""
+    return bool(user) and getattr(user, 'role', None) == CRMUser.ROLE_ADMIN
 
 
 def get_user_from_token(request):
@@ -513,10 +520,12 @@ def auth_change_password(request):
 
 @api_view(['GET'])
 def auth_users_list(request):
-    """Barcha foydalanuvchilar ro'yxati"""
+    """Barcha foydalanuvchilar ro'yxati — faqat admin"""
     user = get_user_from_token(request)
     if not user:
         return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+    if not is_admin(user):
+        return Response({'error': "Bu amal uchun admin huquqi kerak"}, status=403)
 
     users = CRMUser.objects.all()
     return Response(CRMUserSerializer(users, many=True).data)
@@ -524,10 +533,12 @@ def auth_users_list(request):
 
 @api_view(['DELETE'])
 def auth_delete_user(request, user_id):
-    """Foydalanuvchini o'chirish"""
+    """Foydalanuvchini o'chirish — faqat admin"""
     current_user = get_user_from_token(request)
     if not current_user:
         return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+    if not is_admin(current_user):
+        return Response({'error': "Bu amal uchun admin huquqi kerak"}, status=403)
 
     if current_user.id == user_id:
         return Response({'error': "O'zingizni o'chira olmaysiz"}, status=400)
@@ -542,29 +553,14 @@ def auth_delete_user(request, user_id):
 
 @api_view(['POST'])
 def auth_add_user(request):
-    """Yangi foydalanuvchi qo'shish (admin tomonidan)"""
+    """Yangi foydalanuvchi qo'shish — faqat admin"""
     current_user = get_user_from_token(request)
     if not current_user:
         return Response({'error': 'Avtorizatsiya talab qilinadi'}, status=401)
+    if not is_admin(current_user):
+        return Response({'error': "Bu amal uchun admin huquqi kerak"}, status=403)
 
     username = request.data.get('username', '').strip().lower()
-    password = request.data.get('password', '')
-
-    if not username or not password:
-        return Response({'error': 'Login va parol kiritilishi shart'}, status=400)
-
-    if len(password) < 4:
-        return Response({'error': "Parol kamida 4 ta belgi bo'lishi kerak"}, status=400)
-
-    if CRMUser.objects.filter(username=username).exists():
-        return Response({'error': 'Bu login allaqachon band'}, status=400)
-
-    user = CRMUser.objects.create(
-        username=username,
-        password_hash=hash_password(password)
-    )
-
-    return Response(CRMUserSerializer(user).data)
 
 # ===================== TELEGRAM — QARZDORLIK OGOHLANTIRISHI (QO'LDA) =====================
 
