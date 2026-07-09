@@ -440,7 +440,10 @@ def auth_register(request):
         is_trusted=False  # OTP tasdiqlanguncha False
     )
 
-    response = Response({'user': CRMUserSerializer(user).data})
+    response = Response({
+        'user': CRMUserSerializer(user).data,
+        'token': session.token,  # mobil brauzerlarda cross-site cookie ishlamasligi mumkin — zaxira
+    })
     # Token endi javob tanasida YO'Q — faqat httpOnly cookie orqali yuboriladi,
     # shuning uchun frontend uni umuman ko'rmaydi/saqlamaydi (XSS himoyasi).
     return set_auth_cookie(response, session.token)
@@ -493,7 +496,8 @@ def auth_login(request):
 
     response = Response({
         'is_trusted': is_trusted,
-        'user': CRMUserSerializer(user).data
+        'user': CRMUserSerializer(user).data,
+        'token': session.token,
     })
     return set_auth_cookie(response, session.token)
 
