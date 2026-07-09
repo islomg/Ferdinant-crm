@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.conf import settings
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
@@ -267,8 +268,21 @@ def is_admin(user):
     return bool(user) and getattr(user, 'role', None) == CRMUser.ROLE_ADMIN
 
 
+def get_session_token(request):
+    """
+    Sessiya tokenini o'qiydi. Yagona manba — httpOnly cookie (JS orqali
+    o'qib/o'g'irlab bo'lmaydi). Eski frontendlar bilan orqaga moslik uchun
+    Authorization header ham fallback sifatida qabul qilinadi, lekin yangi
+    frontend endi faqat cookie ishlatadi.
+    """
+    token = request.COOKIES.get(settings.AUTH_COOKIE_NAME, '')
+    if not token:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    return token
+
+
 def get_user_from_token(request):
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    token = get_session_token(request)
     if not token:
         return None
     try:
@@ -278,6 +292,28 @@ def get_user_from_token(request):
         return session.user
     except CRMSession.DoesNotExist:
         return None
+
+
+def set_auth_cookie(response, token):
+    response.set_cookie(
+        settings.AUTH_COOKIE_NAME,
+        token,
+        max_age=settings.AUTH_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=settings.AUTH_COOKIE_SECURE,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+        path='/',
+    )
+    return response
+
+
+def clear_auth_cookie(response):
+    response.delete_cookie(
+        settings.AUTH_COOKIE_NAME,
+        path='/',
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    return response
 
 
 # ===================== AUTH API =====================
@@ -404,10 +440,10 @@ def auth_register(request):
         is_trusted=False  # OTP tasdiqlanguncha False
     )
 
-    return Response({
-        'token': session.token,
-        'user': CRMUserSerializer(user).data
-    })
+    response = Response({'user': CRMUserSerializer(user).data})
+    # Token endi javob tanasida YO'Q — faqat httpOnly cookie orqali yuboriladi,
+    # shuning uchun frontend uni umuman ko'rmaydi/saqlamaydi (XSS himoyasi).
+    return set_auth_cookie(response, session.token)
 
 
 @api_view(['POST'])
@@ -455,11 +491,11 @@ def auth_login(request):
         daemon=True,
     ).start()
 
-    return Response({
-        'token': session.token,
+    response = Response({
         'is_trusted': is_trusted,
         'user': CRMUserSerializer(user).data
     })
+    return set_auth_cookie(response, session.token)
 
 
 @api_view(['POST'])
@@ -470,7 +506,7 @@ def auth_trust_device(request):
         return Response({'error': "Token noto'g'ri"}, status=401)
 
     device_id = request.data.get('device_id', '')
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    token = get_session_token(request)
 
     # Joriy sessionni ishonchli qilish
     CRMSession.objects.filter(token=token).update(is_trusted=True)
@@ -485,7 +521,7 @@ def auth_trust_device(request):
 @api_view(['POST'])
 def auth_logout(request):
     """Chiqish — sessionni o'chirish"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    token = get_session_token(request)
     if token:
         session = CRMSession.objects.filter(token=token).select_related('user').first()
         if session:
@@ -500,7 +536,8 @@ def auth_logout(request):
                 args=(username,),
                 daemon=True,
             ).start()
-    return Response({'ok': True})
+    response = Response({'ok': True})
+    return clear_auth_cookie(response)
 
 
 @api_view(['POST'])
@@ -532,10 +569,11 @@ def auth_site_enter(request):
 def auth_site_leave(request):
     """
     Foydalanuvchi brauzer/tabni yopganda yoki sahifadan chiqib ketganda
-    chaqiriladi (navigator.sendBeacon orqali). sendBeacon Authorization
-    header qo'sha olmaydi, shuning uchun token requestning o'zida keladi.
+    chaqiriladi (navigator.sendBeacon orqali). sendBeacon custom header
+    qo'sha olmaydi, lekin cookie'lar brauzer tomonidan avtomatik yuboriladi,
+    shuning uchun token endi cookie'dan o'qiladi (JS uni bilmaydi ham).
     """
-    token = request.data.get('token', '')
+    token = get_session_token(request)
     if not token:
         return Response({'error': "Token yo'q"}, status=400)
 

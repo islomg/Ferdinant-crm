@@ -99,6 +99,26 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
     'https://ferdinant-crm-frontend.netlify.app'
 ).split(',')
 
+# Frontend boshqa domenda (Netlify) turgani uchun cookie cross-site yuboriladi —
+# buning uchun brauzer talabiga ko'ra CORS so'rovlarida credentials (cookie)
+# yuborilishiga ruxsat berishimiz kerak. CORS_ALLOWED_ORIGINS yuqorida qat'iy
+# ro'yxat bilan cheklangani uchun bu xavfsiz (wildcard "*" EMAS).
+CORS_ALLOW_CREDENTIALS = True
+
+# ===================== AUTH COOKIE (httpOnly session token) =====================
+# Token endi frontendga umuman yuborilmaydi/JS orqali o'qilmaydi — faqat
+# httpOnly cookie sifatida saqlanadi. Shu bilan XSS orqali token o'g'irlash
+# imkoni yo'qoladi.
+AUTH_COOKIE_NAME = 'crm_session'
+# Railway'da HTTPS ostida ishlaydi — production'da har doim Secure bo'lsin.
+# Faqat lokal (http://localhost) DEBUG rejimida Secure=False qilamiz, aks holda
+# brauzer cookie'ni umuman o'rnatmaydi.
+AUTH_COOKIE_SECURE = not DEBUG
+# Frontend (Netlify) va backend (Railway) turli domenlarda bo'lgani uchun
+# cross-site cookie kerak — buning uchun SameSite=None va Secure=True shart.
+AUTH_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 kun
+
 # ===================== TELEGRAM — QARZDORLIK ESLATMALARI =====================
 # Frontendda (auth-guard.js) ishlatilayotgan bot bilan bir xil bot ishlatiladi.
 # Xavfsizroq bo'lishi uchun bularni Railway/Heroku'da environment variable
