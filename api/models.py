@@ -174,3 +174,19 @@ class ReminderLog(models.Model):
 
     def __str__(self):
         return f"{self.period} - {self.reminder_type}"
+
+class RegistrationOTP(models.Model):
+    """
+    Ro'yxatdan o'tishda Telegram orqali tasdiqlash kodi — endi to'liq
+    backendda saqlanadi va tekshiriladi (frontendda emas), shuning uchun
+    brauzer konsoli orqali chetlab o'tib bo'lmaydi.
+    """
+    verification_id = models.CharField(max_length=64, unique=True)
+    code = models.CharField(max_length=4)
+    verified = models.BooleanField(default=False)
+    used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"OTP {self.verification_id[:8]}... ({'verified' if self.verified else 'pending'})"

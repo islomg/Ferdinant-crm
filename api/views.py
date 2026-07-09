@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
+from django.utils.crypto import get_random_string
 import hashlib
 import threading
 from django_ratelimit.decorators import ratelimit
@@ -288,12 +289,82 @@ def auth_check_has_users(request):
     return Response({'has_users': count > 0, 'count': count})
 
 @api_view(['POST'])
+@ratelimit(key='ip', rate='5/m', block=True)
+def auth_send_otp(request):
+    """
+    Ro'yxatdan o'tish uchun Telegram tasdiqlash kodi yuboradi.
+    Kod to'liq backendda generatsiya qilinadi va saqlanadi — frontendga
+    hech qachon yuborilmaydi, shuning uchun brauzer konsoli orqali
+    ko'rib bo'lmaydi.
+    """
+    import random
+    from datetime import timedelta
+    from .models import RegistrationOTP
+
+    username = request.data.get('username', '').strip().lower()
+
+    verification_id = get_random_string(32)
+    code = str(random.randint(1000, 9999))
+
+    RegistrationOTP.objects.create(
+        verification_id=verification_id,
+        code=code,
+        expires_at=timezone.now() + timedelta(minutes=5),
+    )
+
+    who_line = f"Foydalanuvchi: `{username}`\n" if username else "Yangi foydalanuvchi ro'yxatdan o'tmoqda.\n"
+    text = (
+        f"🔐 FerdinantEduCRM — Tasdiqlash kodi\n\n"
+        f"{who_line}Kod: {code}\n\n"
+        f"⏱ Kod 5 daqiqa ichida amal qiladi."
+    )
+    ok = telegram_service.send_to_admins(text)
+    if not ok:
+        detail = telegram_service.get_last_error() or "Noma'lum xato"
+        return Response({'error': f"Telegramga yuborishda xato: {detail}"}, status=502)
+
+    return Response({'verification_id': verification_id})
+
+
+@api_view(['POST'])
+@ratelimit(key='ip', rate='10/m', block=True)
+def auth_verify_otp(request):
+    """Foydalanuvchi kiritgan kodni backendda saqlangan kod bilan solishtiradi."""
+    from .models import RegistrationOTP
+
+    verification_id = request.data.get('verification_id', '')
+    code = request.data.get('code', '').strip()
+
+    try:
+        otp = RegistrationOTP.objects.get(verification_id=verification_id)
+    except RegistrationOTP.DoesNotExist:
+        return Response({'result': 'nocode'})
+
+    if otp.used:
+        return Response({'result': 'nocode'})
+
+    if timezone.now() > otp.expires_at:
+        return Response({'result': 'expired'})
+
+    if code != otp.code:
+        return Response({'result': 'wrong'})
+
+    otp.verified = True
+    otp.save()
+    return Response({'result': 'ok'})
+
+
+@api_view(['POST'])
 @ratelimit(key='ip', rate='10/m', block=True)
 def auth_register(request):
-    """Yangi foydalanuvchi ro'yxatdan o'tish"""
+    """Yangi foydalanuvchi ro'yxatdan o'tish — avval tasdiqlangan OTP talab qilinadi"""
+    from datetime import timedelta
+    from .models import RegistrationOTP
+
     username = request.data.get('username', '').strip().lower()
     password = request.data.get('password', '')
     device_id = request.data.get('device_id', '')
+    verification_id = request.data.get('verification_id', '')
 
     if not username or not password:
         return Response({'error': 'Login va parol kiritilishi shart'}, status=400)
@@ -304,10 +375,27 @@ def auth_register(request):
     if CRMUser.objects.filter(username=username).exists():
         return Response({'error': 'Bu login allaqachon band'}, status=400)
 
+    try:
+        otp = RegistrationOTP.objects.get(
+            verification_id=verification_id,
+            verified=True,
+            used=False,
+        )
+    except RegistrationOTP.DoesNotExist:
+        return Response({'error': "Avval Telegram orqali tasdiqlash talab qilinadi"}, status=400)
+
+    # Tasdiqlangandan keyin ham cheksiz muddat ishlatilmasligi uchun —
+    # tasdiqlangan kod yana 10 daqiqa davomida ro'yxatdan o'tish uchun amal qiladi.
+    if timezone.now() > otp.expires_at + timedelta(minutes=10):
+        return Response({'error': "Tasdiqlash muddati tugagan, qaytadan urinib ko'ring"}, status=400)
+
     user = CRMUser.objects.create(
         username=username,
         password_hash=hash_password(password)
     )
+
+    otp.used = True
+    otp.save()
 
     # Session yaratish — ro'yxatdan o'tgach OTP tasdiqlanadi, keyin is_trusted=True bo'ladi
     session = CRMSession.objects.create(
@@ -719,3 +807,53 @@ def ratelimited_error(request, exception):
         {'error': "Juda ko'p urinish qilindi. Iltimos, 1 daqiqadan keyin qayta urinib ko'ring."},
         status=429
     )
+
+
+# ===================== TELEGRAM — TEST NATIJASI / SERTIFIKAT (OCHIQ, TOKENSIZ) =====================
+# Bu ikki endpoint token talab qilmaydi (test/sertifikat sahifasi login qilinmagan
+# foydalanuvchilar uchun ham ochiq), shuning uchun suiiste'mol qilinmasligi uchun
+# qat'iy rate-limit va hajm cheklovlari qo'yilgan. Telegram bot tokeni bu yerda ham
+# faqat serverda (settings.TELEGRAM_BOT_TOKEN) ishlatiladi — frontendga chiqmaydi.
+
+@api_view(['POST'])
+@ratelimit(key='ip', rate='10/m', block=True)
+def telegram_send_quiz_result(request):
+    """Test natijasini adminlarga yuboradi (frontenddagi eski to'g'ridan-to'g'ri chaqiruv o'rniga)."""
+    test_name = str(request.data.get('test_name', 'Test'))[:100]
+    name = str(request.data.get('name', ''))[:100]
+    score = str(request.data.get('score', ''))[:10]
+    total = str(request.data.get('total', ''))[:10]
+
+    if not name:
+        return Response({'error': "'name' majburiy"}, status=400)
+
+    text = (
+        f"📢 {test_name}\n"
+        f"👤 Ism: {name}\n"
+        f"✅ To'g'ri javoblar: {score}/{total}\n"
+        f"📅 Sana: {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+    ok = telegram_service.send_to_admins(text)
+    return Response({'ok': ok})
+
+
+@api_view(['POST'])
+@ratelimit(key='ip', rate='5/m', block=True)
+def telegram_send_certificate(request):
+    """Yaratilgan sertifikat PDF faylini adminlarga yuboradi."""
+    file = request.FILES.get('document')
+    name = str(request.data.get('name', ''))[:100]
+    course = str(request.data.get('course', ''))[:100]
+
+    if not file:
+        return Response({'error': "'document' fayli majburiy"}, status=400)
+
+    MAX_SIZE = 5 * 1024 * 1024  # 5MB
+    if file.size > MAX_SIZE:
+        return Response({'error': "Fayl hajmi 5MB dan katta bo'lmasligi kerak"}, status=400)
+
+    caption = f"🎓 Sertifikat: {name}\n📘 Kurs: {course}"
+    ok = telegram_service.send_document_to_admins(
+        file.read(), file.name or 'sertifikat.pdf', caption
+    )
+    return Response({'ok': ok})

@@ -333,3 +333,70 @@ def send_individual_debt_warnings_batched(
             time.sleep(batch_pause_seconds)
 
     return ok
+
+def send_document_to_admins(file_bytes, filename, caption=""):
+    """
+    Berilgan faylni (masalan sertifikat PDF) barcha admin chat'lariga
+    hujjat sifatida yuboradi. Standart kutubxona bilan (urllib) multipart
+    so'rov quriladi — qo'shimcha kutubxona (masalan requests) shart emas.
+    """
+    import mimetypes
+    import uuid
+
+    token = getattr(settings, 'TELEGRAM_BOT_TOKEN', '')
+    admin_ids = getattr(settings, 'TELEGRAM_ADMIN_CHAT_IDS', [])
+
+    if not token or not admin_ids:
+        _last_error["message"] = "BOT_TOKEN yoki TELEGRAM_ADMIN_CHAT_IDS sozlanmagan"
+        print(f"[telegram] {_last_error['message']} — hujjat yuborilmadi.")
+        return False
+
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    boundary = uuid.uuid4().hex
+
+    ok_any = False
+    for chat_id in admin_ids:
+        url = f"https://api.telegram.org/bot{token}/sendDocument"
+
+        parts = []
+        for field_name, field_value in (("chat_id", str(chat_id)), ("caption", caption)):
+            parts.append(f"--{boundary}\r\n".encode())
+            parts.append(f'Content-Disposition: form-data; name="{field_name}"\r\n\r\n'.encode())
+            parts.append(f"{field_value}\r\n".encode())
+
+        parts.append(f"--{boundary}\r\n".encode())
+        parts.append(
+            f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'.encode()
+        )
+        parts.append(f"Content-Type: {content_type}\r\n\r\n".encode())
+        parts.append(file_bytes)
+        parts.append(b"\r\n")
+        parts.append(f"--{boundary}--\r\n".encode())
+
+        body = b"".join(parts)
+
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                response.read()
+            ok_any = True
+        except urllib.error.HTTPError as exc:
+            try:
+                body_resp = exc.read().decode("utf-8", errors="replace")
+                parsed = json.loads(body_resp)
+                description = parsed.get("description", body_resp)
+            except Exception:
+                description = str(exc)
+            _last_error["message"] = f"Telegram xatosi ({exc.code}): {description}"
+            print(f"[telegram] {_last_error['message']}")
+        except urllib.error.URLError as exc:
+            _last_error["message"] = f"Ulanish xatosi: {exc.reason}"
+            print(f"[telegram] Hujjat yuborishda xato: {exc}")
+
+    return ok_any

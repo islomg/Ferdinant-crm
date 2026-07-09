@@ -6,8 +6,10 @@ from .views import (
     auth_me, auth_update_profile, auth_change_password,
     auth_users_list, auth_delete_user, auth_add_user,
     auth_check_has_users, auth_site_enter, auth_site_leave,
+    auth_send_otp, auth_verify_otp,
     telegram_send_debt_warning,
     telegram_send_group_debt_warning, telegram_send_current_lesson_warning,
+    telegram_send_quiz_result, telegram_send_certificate,
 )
 
 router = DefaultRouter()
@@ -21,6 +23,8 @@ urlpatterns = [
 
     # Auth endpoints
     path('auth/check-users/', auth_check_has_users),   # Token talab qilmaydi
+    path('auth/send-otp/', auth_send_otp),             # Token talab qilmaydi
+    path('auth/verify-otp/', auth_verify_otp),         # Token talab qilmaydi
     path('auth/register/', auth_register),
     path('auth/login/', auth_login),
     path('auth/trust-device/', auth_trust_device),
@@ -38,4 +42,8 @@ urlpatterns = [
     path('telegram/send-debt-warning/', telegram_send_debt_warning),
     path('telegram/send-group-debt-warning/', telegram_send_group_debt_warning),
     path('telegram/send-current-lesson-warning/', telegram_send_current_lesson_warning),
+
+    # Telegram — token talab qilmaydigan ochiq proxy'lar (test natijasi, sertifikat)
+    path('telegram/send-quiz-result/', telegram_send_quiz_result),
+    path('telegram/send-certificate/', telegram_send_certificate),
 ]
