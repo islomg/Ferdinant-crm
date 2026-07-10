@@ -23,6 +23,21 @@ class Group(models.Model):
         return self.name
 
 
+class Course(models.Model):
+    user = models.ForeignKey(
+        'CRMUser',
+        on_delete=models.CASCADE,
+        related_name='courses',
+        null=True,
+        blank=True
+    )
+    name = models.CharField(max_length=100)
+    price = models.IntegerField(default=500000)
+
+    def __str__(self):
+        return self.name
+
+
 class Student(models.Model):
     name = models.CharField(max_length=200)
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    GroupViewSet, StudentViewSet, PaymentViewSet, TrashViewSet,
+    GroupViewSet, CourseViewSet, StudentViewSet, PaymentViewSet, TrashViewSet,
     auth_register, auth_login, auth_trust_device, auth_logout,
     auth_me, auth_update_profile, auth_change_password,
     auth_users_list, auth_delete_user, auth_add_user,
@@ -14,6 +14,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'groups', GroupViewSet)
+router.register(r'courses', CourseViewSet)
 router.register(r'students', StudentViewSet)
 router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'trash', TrashViewSet)

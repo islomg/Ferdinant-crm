@@ -10,8 +10,8 @@ import hashlib
 import threading
 from django_ratelimit.decorators import ratelimit
 
-from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
-from .serializers import GroupSerializer, StudentSerializer, PaymentSerializer, TrashSerializer, CRMUserSerializer
+from .models import Group, Course, Student, Payment, Trash, CRMUser, CRMSession
+from .serializers import GroupSerializer, CourseSerializer, StudentSerializer, PaymentSerializer, TrashSerializer, CRMUserSerializer
 from . import telegram_service
 
 
@@ -92,6 +92,43 @@ class GroupViewSet(viewsets.ModelViewSet):
             user,
             "Guruh qo'shildi",
             f"📚 Guruh: {group.name}"
+            + (f"\n👥 Uchun: {target_user.username}" if target_user and target_user != user else ""),
+        )
+
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+
+    def get_queryset(self):
+        user = get_user_from_token(self.request)
+
+        if not user:
+            return Course.objects.none()
+
+        owner_id = self.request.query_params.get('owner_id')
+        if owner_id:
+            if not is_admin(user):
+                return Course.objects.none()
+            return Course.objects.filter(user_id=owner_id)
+
+        return Course.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        user = get_user_from_token(self.request)
+
+        target_user = user
+        owner_id = self.request.data.get('user')
+        if owner_id and is_admin(user):
+            selected_user = CRMUser.objects.filter(id=owner_id).first()
+            if selected_user:
+                target_user = selected_user
+
+        course = serializer.save(user=target_user)
+
+        notify_activity(
+            user,
+            "Kurs qo'shildi",
+            f"🎓 Kurs: {course.name}"
             + (f"\n👥 Uchun: {target_user.username}" if target_user and target_user != user else ""),
         )
 

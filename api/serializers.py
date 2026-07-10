@@ -1,10 +1,16 @@
 from rest_framework import serializers
-from .models import Group, Student, Payment, Trash, CRMUser, CRMSession
+from .models import Group, Course, Student, Payment, Trash, CRMUser, CRMSession
 
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
+        fields = '__all__'
+
+
+class CourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
         fields = '__all__'
 
 

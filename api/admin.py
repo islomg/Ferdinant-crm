@@ -1,12 +1,17 @@
 from django.contrib import admin
 
 from django.contrib import admin
-from .models import Group, Student, Payment, Trash
+from .models import Group, Course, Student, Payment, Trash
 
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'teacher', 'time', 'days', 'price', 'max_students')
     search_fields = ('name', 'teacher')
+
+@admin.register(Course)
+class CourseAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'price')
+    search_fields = ('name',)
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
